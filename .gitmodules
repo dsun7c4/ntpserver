@@ -1,0 +1,3 @@
+[submodule "kicad"]
+	path = kicad
+	url = https://github.com/dcsun88/ntpserver-kicad.git
