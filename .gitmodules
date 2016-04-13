@@ -4,3 +4,6 @@
 [submodule "u-boot"]
 	path = u-boot
 	url = https://github.com/dcsun88/ntpserver-u-boot.git
+[submodule "freecad"]
+	path = freecad
+	url = https://github.com/dcsun88/ntpserver-freecad.git
