@@ -10,3 +10,6 @@
 [submodule "fpga"]
 	path = fpga
 	url = https://github.com/dcsun88/ntpserver-fpga.git
+[submodule "linux"]
+	path = linux
+	url = https://github.com/dcsun88/ntpserver-linux.git
