@@ -7,3 +7,6 @@
 [submodule "freecad"]
 	path = freecad
 	url = https://github.com/dcsun88/ntpserver-freecad.git
+[submodule "fpga"]
+	path = fpga
+	url = https://github.com/dcsun88/ntpserver-fpga.git
