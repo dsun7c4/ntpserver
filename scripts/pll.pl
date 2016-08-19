@@ -29,7 +29,7 @@ EOF
 }
 
 my $g_pll_freq = 10.0e6;
-my @g_pos      = (0, 0, 0);
+my @g_pos      = (50e6, 50e6, 50e6);
 
 sub peek
 {
@@ -112,14 +112,17 @@ sub loworder
     my $vc_reg  = 0x80600010;
     my $alpha1  = 1.0;
     my $gain1   = 1.0;
-    my $alpha2  = 0.2;
+    my $alpha2  = 1.0;
     my $gain2   = 1.0;
+    my $residual = 0.0;
+
+    my $pfd_raw;
+    my $pfd;
+    my $error;
+    my $val;
+    my $last_vc;
 
     while (1) {
-	my $pfd_raw;
-	my $pfd;
-	my $error;
-	my $val;
 
 	# Read Phase Frequency Dector
 	# Phase error step 2*pi/100e6, Kd = 100e6
@@ -135,7 +138,12 @@ sub loworder
 	# $error   = -32768 if ($error < -32768);
 
 	# Filter
-	$vc = $vc * (1.0 - $alpha2) + $error * $alpha2;
+	$last_vc = $vc;
+	$vc = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
+	if (abs($vc - $last_vc) < 10) {
+	    $residual += $error * 0.1;
+	}	    
+	
 	#$vc = $vc + $error * $alpha2;
 
 	$val = int($vc * $gain2 + 32768);
@@ -149,7 +157,7 @@ sub loworder
 
 	poke($vc_reg, $val);
 
-	printf("0x%08x  %.0f  %f  %f  0x%04x\n", $pfd_raw, $pfd, $error, $vc, $val);
+	printf("0x%08x  %.0f  %f  %f  0x%04x  %f\n", $pfd_raw, $pfd, $error, $vc, $val, $residual);
 
 	sleep(1) if (!$g_sim);
     }
@@ -288,7 +296,7 @@ sub state
 	
 	$val = 0x8000;
 
-	printf("0x%08x  %10.0f  %12f  %12f  0x%04x\n", $pfd_raw, $pfd, $ferr, $vc, $val);
+	printf("0x%08x  %10.0f  %12f  %12f  0x%04x\n", $pfd_raw, $pfd, $perr, $vc, $val);
 
 	poke($vc_reg, $val);
 
