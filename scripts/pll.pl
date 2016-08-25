@@ -9,6 +9,10 @@ my $g_algo = 0;
 my $g_init = 0;
 my $g_sim  = 0;
 
+my $pfd_reg = 0x80600110;
+my $fd_reg  = 0x80600114;
+my $vc_reg  = 0x80600124;
+
 sub usage
 {
    my($msg) = @_;
@@ -108,8 +112,6 @@ sub init_pll
 sub loworder
 {
     my $vc      = 0.0;
-    my $pfd_reg = 0x80600008;
-    my $vc_reg  = 0x80600010;
     my $alpha1  = 1.0;
     my $gain1   = 1.0;
     my $alpha2  = 1.0;
@@ -118,6 +120,8 @@ sub loworder
 
     my $pfd_raw;
     my $pfd;
+    my $fd_raw;
+    my $fd;
     my $error;
     my $val;
     my $last_vc;
@@ -127,26 +131,27 @@ sub loworder
 	# Read Phase Frequency Dector
 	# Phase error step 2*pi/100e6, Kd = 100e6
 	$pfd_raw  = peek($pfd_reg);
+	$fd_raw   = peek($fd_reg);
 	$pfd      = $pfd_raw;
 	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
+	$fd       = $fd_raw;
+	$fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
 
 	# Gain
 	$error   = $error * ( 1.0 - $alpha1) + $pfd * $gain1 * $alpha1;
 
-	# Clamp
-	# $error   = 32767 if ($error > 32767);
-	# $error   = -32768 if ($error < -32768);
-
 	# Filter
 	$last_vc = $vc;
 	$vc = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
-	if (abs($vc - $last_vc) < 10) {
+	if (abs($fd) < 10) {
 	    $residual += $error * 0.1;
 	}	    
 	
 	#$vc = $vc + $error * $alpha2;
 
 	$val = int($vc * $gain2 + 32768);
+
+	# Clamp
 	if ($val > 65535) {
 	    $val = 65535;
 	    $vc  = 32767.0 / $gain2;
@@ -157,7 +162,8 @@ sub loworder
 
 	poke($vc_reg, $val);
 
-	printf("0x%08x  %.0f  %f  %f  0x%04x  %f\n", $pfd_raw, $pfd, $error, $vc, $val, $residual);
+	printf("0x%08x  0x%08x  %10.0f  %10.0f  %16f  %13f  0x%04x  %13f\n", 
+	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $vc, $val, $residual);
 
 	sleep(1) if (!$g_sim);
     }
@@ -167,8 +173,6 @@ sub loworder
 sub passive
 {
     my $vc;
-    my $pfd_reg = 0x80600008;
-    my $vc_reg  = 0x80600010;
     my $r1      = 1.0;
     my $r2      = 1.0;
     my $c1      = 3e-3;
@@ -214,8 +218,6 @@ sub passive
 sub subsample
 {
     my $vc;
-    my $pfd_reg = 0x80600008;
-    my $vc_reg  = 0x80600010;
     my $r1      = 2.0;
     my $r2      = 1.0;
     my $c1      = 1.0e2;
@@ -271,8 +273,6 @@ sub subsample
 
 sub state
 {
-    my $pfd_reg = 0x80600008;
-    my $vc_reg  = 0x80600010;
     my $pfd_d   = 0.0;
     my $cnt     = 0;
     my $perr    = 0.0;

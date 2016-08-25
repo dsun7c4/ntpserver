@@ -227,6 +227,6 @@ read_adt7410;
 my $fan_raw;
 my $fan_rpm;
 
-$fan_raw = peek(0x80600100) >> 16;
-$fan_rpm = 1.0e4 / $fan_raw / 2.0 * 60.0;
+$fan_raw = peek(0x80600200) >> 12;
+$fan_rpm = 1.0e6 / $fan_raw / 2.0 * 60.0;
 printf("Fan       0x%04x  %f\n", $fan_raw, $fan_rpm);
