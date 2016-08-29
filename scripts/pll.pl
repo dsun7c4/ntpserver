@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use Getopt::Std;
+use Time::HiRes;
 use strict;
 
 $0 =~ s:^.*/::g;
@@ -41,7 +42,11 @@ sub peek
     my $val;
 
     if ($g_sim) {
-	return ($g_pos[2] & 0xffffffff);
+	if ($addr == $fd_reg) {
+	    return (($g_pos[2] - $g_pos[1]) & 0xffffffff);
+	} else {
+	    return ($g_pos[2] & 0xffffffff);
+	}
     }
 
     $val = `/root/bin/peek $addr`;
@@ -125,8 +130,12 @@ sub loworder
     my $error;
     my $val;
     my $last_vc;
+    my $microseconds;
+    my $tmp;
 
     while (1) {
+
+	($tmp, $microseconds) = Time::HiRes::gettimeofday;
 
 	# Read Phase Frequency Dector
 	# Phase error step 2*pi/100e6, Kd = 100e6
@@ -165,7 +174,7 @@ sub loworder
 	printf("0x%08x  0x%08x  %10.0f  %10.0f  %16f  %13f  0x%04x  %13f\n", 
 	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $vc, $val, $residual);
 
-	sleep(1) if (!$g_sim);
+	Time::HiRes::usleep(1000000 - $microseconds + 200000) if (!$g_sim);
     }
 }
 
