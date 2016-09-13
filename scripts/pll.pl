@@ -10,9 +10,10 @@ my $g_algo = 0;
 my $g_init = 0;
 my $g_sim  = 0;
 
-my $pfd_reg = 0x80600110;
-my $fd_reg  = 0x80600114;
-my $vc_reg  = 0x80600124;
+my $pfd_reg     = 0x80600110;
+my $fd_reg      = 0x80600114;
+my $vc_reg      = 0x80600124;
+my $ppscnt_reg  = 0x80600118;
 
 sub usage
 {
@@ -114,6 +115,29 @@ sub init_pll
 }
 
 
+sub wait_for_gps
+{
+    my $pps_cnt = 0;
+    my $val;
+    my $i;
+    my $diff = 0;
+
+    for ($i = 0; $i < 600; $i++) {
+	$val = peek($ppscnt_reg);
+	if ($val != $pps_cnt) {
+	    $diff++;
+	}
+	if ($diff > 10) {
+	    return;
+	}
+	printf ("# %d  %d\n", $i, $val);
+	$pps_cnt = $val;
+
+	sleep(1);
+    }
+}
+
+
 sub loworder
 {
     my $vc      = 0.0;
@@ -132,6 +156,21 @@ sub loworder
     my $last_vc;
     my $microseconds;
     my $tmp;
+    my $i;
+
+    
+    for ($i = 0; $i < 3; $i++) {
+	$pfd_raw  = peek($pfd_reg);
+	$pfd      = $pfd_raw;
+	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
+	$val      = peek($vc_reg);
+	printf ("# 0x%08x 0 %10.0f 0 0 0 0 0\n", $pfd_raw, $pfd);
+	if (abs($pfd) > 5400000) {
+	    printf ("# Resetting PFD\n");
+	    poke($vc_reg, $val | 0x100000);
+	    sleep (2);
+	}
+    }
 
     while (1) {
 
@@ -320,9 +359,10 @@ $g_init = 1 if ($Getopt::Std::opt_i);
 $g_sim  = 1 if ($Getopt::Std::opt_s);
 usage("")   if $Getopt::Std::opt_h;
 
-if ($g_init) {
-    init_pll;
-}
+
+init_pll;
+
+wait_for_gps;
 
 if ($g_algo == 0) {
     loworder;
