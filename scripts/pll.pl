@@ -168,7 +168,7 @@ sub loworder
 	if (abs($pfd) > 5400000) {
 	    printf ("# Resetting PFD\n");
 	    poke($vc_reg, $val | 0x100000);
-	    sleep (2);
+	    sleep (3);
 	}
     }
 
