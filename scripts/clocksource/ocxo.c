@@ -14,7 +14,7 @@
 
 
 #define OCXO_BASE_ADDR       0x80600000
-#define OCXO_BASE_ADDR_SIZE  8
+#define OCXO_BASE_ADDR_SIZE  0x2000
 #define OCXO_CLK_HZ          100000000    /* 100 MHz */
 #define OCXO_COUNTER0	     0x100
 #define OCXO_COUNTER1	     0x104
