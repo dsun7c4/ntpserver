@@ -86,7 +86,7 @@ static cycle_t ocxo_clocksource_read(struct clocksource *cs)
 
 static struct clocksource ocxo_clocksource = {
 	.name	= "ocxo_tsc",
-	.rating	= 300,
+	.rating	= 301,
 	.read	= ocxo_clocksource_read,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
