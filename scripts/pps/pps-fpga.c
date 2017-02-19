@@ -20,7 +20,6 @@
  */
 
 #define PPS_FPGA_NAME "pps-fpga"
-#define pr_fmt(fmt) PPS_FPGA_NAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -75,7 +74,7 @@ static irqreturn_t pps_fpga_irq_handler(int irq, void *data)
     /* Clear IRQ */
     writel_relaxed(status, fpga.fpga_base + FPGA_PPS_IRQ_STATUS);
 
-    /* The time stamp counter at tne interrupt */
+    /* The time stamp counter at the interrupt */
     irq_cycle = readl_relaxed(fpga.fpga_base + FPGA_TSC_IRQ_LSW);
         
     /* Set the pps offset to the measured interrupt latencey */
@@ -88,7 +87,7 @@ static irqreturn_t pps_fpga_irq_handler(int irq, void *data)
     return IRQ_HANDLED;
 }
 
-static int pps_fpga_init(void)
+static int __init pps_fpga_init(void)
 {
     int ret;
     int pps_default_params;
@@ -153,7 +152,7 @@ static int pps_fpga_init(void)
     return -EINVAL;
 }
 
-static void pps_fpga_exit(void)
+static void __exit pps_fpga_exit(void)
 {
     free_irq(fpga.irq, &fpga);
     pps_unregister_source(fpga.pps);
