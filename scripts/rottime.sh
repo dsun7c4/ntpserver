@@ -25,7 +25,7 @@ pos=0
 
 while true; do
     dp16=`echo "ibase=2; $dp2" | bc`
-    adc=`~/bin/peek 0x80600124`
+    adc=`${PEEK} 0x80600124`
 
     str=
     for i in {6..9}; do
