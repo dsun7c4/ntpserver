@@ -8,6 +8,61 @@
 * 18 Digit non-multiplexed time/info display
 * 1U case 4 inches deep
 
+## Directory layout
+* boot
+
+  Files in the boot partition that the Zynq uses for bootstrap loading.
+* fpga
+
+  The FPGA code for the Zynq processor.  Setup for the v1.0.0 version of the main board.  The FPGA drives the custom peripherals on the main board:
+  - Time Stamp Counter (TSC) running from the OCXO clock.
+  - Multi digit 7-segment display.
+  - OCXO control voltage DAC.
+  - Phase detector between GPS PPS signal and OCXO PPS signal.
+  - Time of day counters.
+* freecad
+
+  3D models for the case parts and components for kicad.
+  * mod/local.pretty/packages3d
+
+    The 3D model source for the kicad components.
+  * ponoko
+
+    File sent to [ponoko](https://www.ponoko.com/) to make the OXCO cover and experimental parts for the case.
+* kicad
+  * 2x7seg
+
+    2 Digit 7-segment display board.  Designed to be strung together to any length.
+  * clock
+
+    Tme mainboard for the clock.
+  * lib
+
+    kicad schematic library components.
+  * mod/local.pretty
+
+    Local PCB components for kicad containing parts used in 2x7seg, clock, and term.  The 3d model paths are hard coded with full path to the file.
+  * term
+
+    The termination and connector board.  Used at both ends of the display string.
+* linux
+
+  Fork of the Xilinx linux kernel used.
+* u-boot
+
+  Fork of Xilinx u-boot used.
+* scripts
+
+  Various test scripts and programs to setup the programmed FPGA.
+  * clocksource
+
+    A simple clockdource driver to use the OCXO TSC as the timekeeping source.
+
+  * pps
+
+    A simple PPS driver for the OCXO PPS generator that is compatible with the ntp deamon.
+
+
 Case
 ![case](./image/case.png)
 
