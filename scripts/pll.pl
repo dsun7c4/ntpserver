@@ -157,6 +157,7 @@ sub loworder
     my $microseconds;
     my $tmp;
     my $i;
+    my $status;
 
     
     for ($i = 0; $i < 3; $i++) {
@@ -208,10 +209,12 @@ sub loworder
 	    $vc  = -32768.0 / $gain2;
 	}
 
+        $status = peek($vc_reg);poke
 	poke($vc_reg, $val);
 
-	printf("0x%08x  0x%08x  %10.0f  %10.0f  %16f  %13f  0x%04x  %13f\n", 
-	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $vc, $val, $residual);
+	printf("0x%08x  0x%08x  %10.0f  %10.0f  %16f  %13f  0x%04x  %13f  %d\n", 
+	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $vc, $val, $residual,
+	       $status & 0x00800000 ? 1 : 0);
 
 	Time::HiRes::usleep(1000000 - $microseconds + 200000) if (!$g_sim);
     }
