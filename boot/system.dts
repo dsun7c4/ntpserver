@@ -97,6 +97,8 @@
 
 	ds3232: rtc@68 {
       	    compatible = "maxim,ds3232";
+            interrupt-parent = <&intc>;
+            interrupts = <0 31 4 >;
 	    reg = <0x68>;
 	};
 };
@@ -129,6 +131,7 @@
 &amba {
       i2c2: i2c@4160000 {
       	    compatible = "xlnx,xps-iic-2.00.a";
+	    interrupt-parent = <&intc>;
             interrupts = <0 29 4 >;
             reg = < 0x41600000 0x10000 >;
             #size-cells = <0>;

@@ -140,12 +140,13 @@ sub wait_for_gps
 
 sub loworder
 {
-    my $vc      = 0.0;
-    my $alpha1  = 1.0;
-    my $gain1   = 1.0;
-    my $alpha2  = 1.0;
-    my $gain2   = 1.0;
+    my $vc       = 0.0;
+    my $alpha1   = 1.0;
+    my $gain1    = 10.0;
+    my $alpha2   = 1.0;
+    my $gain2    = 0.01;
     my $residual = 0.0;
+    my $gain3    = 1.0;
 
     my $pfd_raw;
     my $pfd;
@@ -153,7 +154,7 @@ sub loworder
     my $fd;
     my $error;
     my $val;
-    my $last_vc;
+#    my $last_vc;
     my $microseconds;
     my $tmp;
     my $i;
@@ -187,33 +188,34 @@ sub loworder
 	$fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
 
 	# Gain
-	$error   = $error * ( 1.0 - $alpha1) + $pfd * $gain1 * $alpha1;
+	$error    = $error * ( 1.0 - $alpha1) + $pfd * $gain1 * $alpha1;
 
 	# Filter
-	$last_vc = $vc;
-	$vc = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
-	if (abs($fd) < 10) {
-	    $residual += $error * 0.1;
-	}	    
+#	$last_vc  = $vc;
+	$vc       = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
+#	if (abs($fd) < 10) {
+#	    $residual += $error * 0.1;
+	    $residual += $error * $gain2;
+#	}	    
 	
-	#$vc = $vc + $error * $alpha2;
+#	$vc       = $vc + $error * $alpha2;
 
-	$val = int($vc * $gain2 + 32768);
+	$val      = int($vc * $gain3 + 32768);
 
 	# Clamp
 	if ($val > 65535) {
 	    $val = 65535;
-	    $vc  = 32767.0 / $gain2;
+	    $vc  = 32767.0 / $gain3;
 	} elsif ($val < 0) {
 	    $val = 0;
-	    $vc  = -32768.0 / $gain2;
+	    $vc  = -32768.0 / $gain3;
 	}
 
-        $status = peek($vc_reg);poke
+        $status   = peek($vc_reg);
 	poke($vc_reg, $val);
 
-	printf("0x%08x  0x%08x  %10.0f  %10.0f  %16f  %13f  0x%04x  %13f  %d\n", 
-	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $vc, $val, $residual,
+	printf("0x%08x  0x%08x  %6.0f  %6.0f  %13f  %13f  %13f  0x%04x  %d\n", 
+	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $residual, $vc, $val,
 	       $status & 0x00800000 ? 1 : 0);
 
 	Time::HiRes::usleep(1000000 - $microseconds + 200000) if (!$g_sim);
