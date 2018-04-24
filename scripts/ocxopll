@@ -30,7 +30,7 @@ do_start() {
     ${ROOT}/bin/rottime.sh &
     
     # Wait for the pll to lock
-    sleep 120
+    sleep 800
     ${ROOT}/bin/settime.sh
     service ntp start
 }

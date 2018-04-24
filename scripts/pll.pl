@@ -141,12 +141,25 @@ sub wait_for_gps
 sub loworder
 {
     my $vc       = 0.0;
-    my $alpha1   = 1.0;
+    my $residual = 0.0;
+
+    # my $alpha1   = 1.0;
+    # my $gain1    = 10.0;
+    # my $alpha2   = 1.0;
+    # my $gain2    = 0.015;
+    # my $gain3    = 1.0;
+
+    my $alpha1   = 0.3;
     my $gain1    = 10.0;
     my $alpha2   = 1.0;
-    my $gain2    = 0.01;
-    my $residual = 0.0;
+    my $gain2    = 0.007;
     my $gain3    = 1.0;
+
+    # my $alpha1   = 0.3 / 10.0;
+    # my $gain1    = 10.0;
+    # my $alpha2   = 1.0;
+    # my $gain2    = 0.007 / 10.0;
+    # my $gain3    = 1.0;
 
     my $pfd_raw;
     my $pfd;
@@ -159,6 +172,7 @@ sub loworder
     my $tmp;
     my $i;
     my $status;
+    my $lock_cnt;
 
     
     for ($i = 0; $i < 3; $i++) {
@@ -175,8 +189,6 @@ sub loworder
     }
 
     while (1) {
-
-	($tmp, $microseconds) = Time::HiRes::gettimeofday;
 
 	# Read Phase Frequency Dector
 	# Phase error step 2*pi/100e6, Kd = 100e6
@@ -214,10 +226,32 @@ sub loworder
         $status   = peek($vc_reg);
 	poke($vc_reg, $val);
 
-	printf("0x%08x  0x%08x  %6.0f  %6.0f  %13f  %13f  %13f  0x%04x  %d\n", 
+	printf("0x%08x  0x%08x  %3.0f %3.0f  %10f  %12f %12f  0x%04x  %d %d\n", 
 	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $residual, $vc, $val,
-	       $status & 0x00800000 ? 1 : 0);
+	       $status & 0x00800000 ? 1 : 0, $lock_cnt);
 
+	if ($pfd == 0) {
+	    $lock_cnt++;
+	} else {
+	    $lock_cnt = 0;
+	}
+
+	# Switch time constants when we are in lock
+	if ($lock_cnt > 20) {
+	    $alpha1   = 0.3 / 10.0;
+	    $gain1    = 10.0;
+	    $alpha2   = 1.0;
+	    $gain2    = 0.007 / 10.0;
+	    $gain3    = 1.0;
+	} elsif ($pfd > 10) {
+	    $alpha1   = 0.3;
+	    $gain1    = 10.0;
+	    $alpha2   = 1.0;
+	    $gain2    = 0.007;
+	    $gain3    = 1.0;
+	}
+
+	($tmp, $microseconds) = Time::HiRes::gettimeofday;
 	Time::HiRes::usleep(1000000 - $microseconds + 200000) if (!$g_sim);
     }
 }

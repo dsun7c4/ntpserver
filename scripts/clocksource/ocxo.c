@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clocksource.h>
-
+#include <linux/spinlock.h>
 
 #define OCXO_BASE_ADDR       0x80600000
 #define OCXO_BASE_ADDR_SIZE  0x2000
@@ -25,7 +25,7 @@
  */
 static void __iomem *ocxo_base;
 
-#if 0
+#if 1
 static DEFINE_SPINLOCK(ocxo_lock);
 /*
  * To get the value from the OCXO Counter register proceed as follows:
@@ -36,21 +36,23 @@ static DEFINE_SPINLOCK(ocxo_lock);
  */
 static u64 ocxo_counter_read(void)
 {
+	unsigned long flags;
 	u64 counter;
 	u32 lower;
 	u32 upper;
 
-	spin_lock(&ocxo_lock);
-	lower = readl_relaxed(ocxo_base + OCXO_COUNTER0);
+	spin_lock_irqsave(&ocxo_lock, flags);
+	lower = readl(ocxo_base + OCXO_COUNTER0);
 	upper = readl_relaxed(ocxo_base + OCXO_COUNTER1);
-	spin_unlock(&ocxo_lock);
+	spin_unlock_irqrestore(&ocxo_lock, flags);
 
 	counter = upper;
 	counter <<= 32;
 	counter |= lower;
 	return counter;
 }
-#endif
+
+#else
 
 /*
  * To ensure that updates to comparator value register do not set the
@@ -78,6 +80,7 @@ static u64 ocxo_counter_read(void)
 	counter |= lower;
 	return counter;
 }
+#endif
 
 static cycle_t ocxo_clocksource_read(struct clocksource *cs)
 {
