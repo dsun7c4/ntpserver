@@ -23,6 +23,12 @@
 * freecad
 
   3D models for the case parts and components for kicad.
+  * case
+
+    3D model of the case, display, pcb, power supply, etc
+    * assembly.fcstd
+
+      Top level case assembly incorporating all other files in this directory
   * mod/local.pretty/packages3d
 
     The 3D model source for the kicad components.
