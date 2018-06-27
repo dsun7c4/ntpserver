@@ -1,0 +1,5 @@
+the_ROM_image:
+{
+	[bootloader]fpga/fsbl/clock/Release/clock.elf
+	u-boot/u-boot.elf
+}
