@@ -140,6 +140,9 @@ sub wait_for_gps
 
 sub loworder
 {
+    my $mode     = 0;
+    my $hold     = 0;
+
     my $vc       = 0.0;
     my $residual = 0.0;
 
@@ -226,9 +229,9 @@ sub loworder
         $status   = peek($vc_reg);
 	poke($vc_reg, $val);
 
-	printf("0x%08x  0x%08x  %3.0f %3.0f  %10f  %12f %12f  0x%04x  %d %d\n", 
+	printf("0x%08x  0x%08x  %3.0f %3.0f  %10f  %12f %12f  0x%04x  %d %d %d\n", 
 	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $residual, $vc, $val,
-	       $status & 0x00800000 ? 1 : 0, $lock_cnt);
+	       $status & 0x00800000 ? 1 : 0, $lock_cnt, $mode);
 
 	if ($pfd == 0) {
 	    $lock_cnt++;
@@ -243,12 +246,14 @@ sub loworder
 	    $alpha2   = 1.0;
 	    $gain2    = 0.007 / 10.0;
 	    $gain3    = 1.0;
-	} elsif ($pfd > 10) {
+	    $mode     = 1;
+	} elsif (abs($pfd) > 10) {
 	    $alpha1   = 0.3;
 	    $gain1    = 10.0;
 	    $alpha2   = 1.0;
 	    $gain2    = 0.007;
 	    $gain3    = 1.0;
+	    $mode     = 0;
 	}
 
 	($tmp, $microseconds) = Time::HiRes::gettimeofday;
@@ -256,140 +261,6 @@ sub loworder
     }
 }
 
-
-sub passive
-{
-    my $vc;
-    my $r1      = 1.0;
-    my $r2      = 1.0;
-    my $c1      = 3e-3;
-    my $vc1     = 36193.0;
-    my $tc      = 1.0 / (($r1 + $r2) * $c1);
-
-    my $pfd_raw;
-    my $pfd;
-    my $t;
-    my $va;
-    my $val;
-
-    while (1) {
-
-	# Read Phase Frequency Dector
-	# Phase error step 2*pi/100e6, Kd = 100e6
-	$pfd_raw  = peek($pfd_reg);
-	$pfd      = $pfd_raw;
-	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-
-	# Passive lag filter
-	$t   = abs($pfd) * 10e-9;
-	$va  = $pfd > 0 ? 65534.0 : 1.0;
-	$vc1 = $va * (1 - exp(-$t * $tc)) + $vc1 * exp (-$t * $tc);
-
-	# Control voltage
-	#$vc = (65535.0 - $vc1) / ($r1 + $r2) * $r2 + $vc1;
-	$vc = $vc1;
-
-	# DAC: 0 p: 9100 f: 0.99990900828   DAC: 65535 p: 9470 f: 1.00009470897
-	# K0 = 2.83361089494e-9
-	$val = int($vc);
-
-	poke($vc_reg, $val);
-
-	printf("0x%08x  %.0f  %f  %f  0x%04x\n", $pfd_raw, $pfd, $vc1, $vc, $val);
-
-	sleep(1) if (!$g_sim);
-    }
-}
-
-
-sub subsample
-{
-    my $vc;
-    my $r1      = 2.0;
-    my $r2      = 1.0;
-    my $c1      = 1.0e2;
-    my $vc1     = 36193.0;
-    my $tc      = 1.0 / (($r1 + $r2) * $c1);
-    my $pfd_acc = 0.0;
-    my $cnt     = 0;
-    my $gainv   = 64.0;
-
-    my $pfd_raw;
-    my $pfd;
-    my $t;
-    my $va;
-    my $val;
-
-    while (1) {
-
-	# Read Phase Frequency Dector
-	# Phase error step 2*pi/100e6, Kd = 100e6
-	$pfd_raw  = peek($pfd_reg);
-	$pfd      = $pfd_raw;
-	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-	$pfd_acc += $pfd;
-	$cnt++;
-
-	if (($cnt % 16) == 0) {
-	    # Passive lag filter
-	    $t   = abs($pfd) * 10e-9;
-	    $va  = $pfd_acc > 0 ? 32767.0 / $gainv: -32767.0 / $gainv;
-	    $vc1 = $va * (1 - exp(-$t * $tc)) + $vc1 * exp (-$t * $tc);
-
-	    # Control voltage
-	    #$vc = (65535.0 - $vc1) / ($r1 + $r2) * $r2 + $vc1;
-	    $vc = ($vc1 * $gainv)  + 32768;
-
-	    # DAC: 0 p: 9100 f: 0.99990900828   DAC: 65535 p: 9470 f: 1.00009470897
-	    # K0 = 2.83361089494e-9
-	    $val = int($vc);
-
-	    printf("0x%08x  %10.0f  %12f  %12f  0x%04x\n", $pfd_raw, $pfd_acc, $vc1, $vc, $val);
-	    $pfd_acc = 0.0;
-	}
-
-	poke($vc_reg, $val);
-
-	#printf("0x%08x  %10.0f  %12f  %12f  0x%04x\n", $pfd_raw, $pfd_acc, $vc1, $vc, $val) if ($cnt);
-	return if ($g_sim && $cnt > 3600);
-
-	sleep(1) if (!$g_sim);
-    }
-}
-
-
-sub state
-{
-    my $pfd_d   = 0.0;
-    my $cnt     = 0;
-    my $perr    = 0.0;
-
-    my $pfd_raw;
-    my $pfd;
-    my $vc;
-    my $val;
-
-    while (1) {
-
-	# Read Phase Frequency Dector
-	# Phase error step 2*pi/100e6, Kd = 100e6
-	$pfd_d    = $pfd;
-	$pfd_raw  = peek($pfd_reg);
-	$pfd      = $pfd_raw;
-	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-	$perr     = $pfd - $pfd_d;
-	$cnt++;
-	
-	
-	$val = 0x8000;
-
-	printf("0x%08x  %10.0f  %12f  %12f  0x%04x\n", $pfd_raw, $pfd, $perr, $vc, $val);
-
-	poke($vc_reg, $val);
-
-	sleep(1) if (!$g_sim);
-    }
-}
 
 
 getopts('a:his');
@@ -405,11 +276,5 @@ wait_for_gps;
 
 if ($g_algo == 0) {
     loworder;
-} elsif ($g_algo == 1) {
-    passive;
-} elsif ($g_algo == 2) {
-    subsample;
-} elsif ($g_algo == 3) {
-    state;
 }
 

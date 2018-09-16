@@ -30,6 +30,7 @@
 
 #define FPGA_BASE_ADDR       0x80600000
 #define FPGA_BASE_ADDR_SIZE  0x2000
+#define FPGA_CLK_NS          10    /* 100 MHz */
 #define FPGA_TSC_LSW         0x100
 #define FPGA_TSC_MSW         0x104
 #define FPGA_TSC_IRQ_LSW     0x108
@@ -79,7 +80,7 @@ static irqreturn_t pps_fpga_irq_handler(int irq, void *data)
         
     /* Set the pps offset to the measured interrupt latencey */
     fpga.pps->params.assert_off_tu.sec  = 0;
-    fpga.pps->params.assert_off_tu.nsec = - ((u32) (now - irq_cycle)) * 10;
+    fpga.pps->params.assert_off_tu.nsec = - ((u32) (now - irq_cycle)) * FPGA_CLK_NS;
 
     /* Generate PPS event */
     pps_event(fpga.pps, &ts, PPS_CAPTUREASSERT, NULL);
