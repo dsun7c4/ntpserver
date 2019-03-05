@@ -14,7 +14,7 @@
   Files in the boot partition that the Zynq uses for bootstrap loading.
 * fpga
 
-  The FPGA code for the Zynq processor.  Setup for the v1.0.0 version of the main board.  The FPGA drives the custom peripherals on the main board:
+  The FPGA code for the Zynq processor.  Setup for the v1.1.0 version of the main board.  The FPGA drives the custom peripherals on the main board:
   - Time Stamp Counter (TSC) running from the OCXO clock.
   - Multi digit 7-segment display.
   - OCXO control voltage DAC.
@@ -22,7 +22,7 @@
   - Time of day counters.
 * freecad
 
-  3D models for the case parts and components for kicad.
+  freecad 0.16 3D models for the case parts and components for kicad.
   * case
 
     3D model of the case, display, pcb, power supply, etc
@@ -48,9 +48,18 @@
   * mod/local.pretty
 
     Local PCB components for kicad containing parts used in 2x7seg, clock, and term.  The 3d model paths are hard coded with full path to the file.
+  * rj45brkout
+
+    Break out board for the panel mount RJ45 Ethernet connector.
   * term
 
     The termination and connector board.  Used at both ends of the display string.
+  * usbabrkout
+
+    Break out board for the panel mount USB-A connector.
+  * usbbbrkout
+
+    Break out board for the panel mount USB-B connector.
 * linux
 
   Fork of the Xilinx linux kernel used.

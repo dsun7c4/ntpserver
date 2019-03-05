@@ -26,7 +26,8 @@ do_start() {
     # Start the pll and send the output as UDP broadcast
     ${ROOT}/bin/pll.pl | nc -u -b 192.168.124.255 4010&
 
-    # Display the time
+    # Initially set the time and display the time
+    ${ROOT}/bin/settime.sh
     ${ROOT}/bin/rottime.sh &
     
     # Wait for the pll to lock
@@ -50,3 +51,5 @@ case "$1" in
         exit 3
         ;;
 esac
+
+exit 0
