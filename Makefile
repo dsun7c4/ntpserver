@@ -17,11 +17,11 @@ u-boot: u-boot/u-boot
 
 ######################################################################
 #  Xilinx fpga and First Stage Boot Loader
-fpga/clock/clock.runs/impl_1/clock.bin:
-	${MAKE} -C fpga
-	${MAKE} -C fpga fsbl
+fpga/vhd/clock/clock.runs/impl_1/clock.bin:
+	${MAKE} -C fpga/vhd
+	${MAKE} -C fpga/vhd fsbl
 
-boot/system.bit.bin: fpga/clock/clock.runs/impl_1/clock.bin
+boot/system.bit.bin: fpga/vhd/clock/clock.runs/impl_1/clock.bin
 	cp $? $@
 
 fpga: boot/system.bit.bin
@@ -33,7 +33,7 @@ u-boot/u-boot.elf: u-boot/u-boot
 	cp $? $@
 	arm-xilinx-linux-gnueabi-strip $@
 
-boot/BOOT.bin: scripts/fsbl.bif fpga/fsbl/clock/Release/clock.elf u-boot/u-boot.elf
+boot/BOOT.bin: scripts/fsbl.bif fpga/vhd/fsbl/clock/Release/clock.elf u-boot/u-boot.elf
 	bootgen -image scripts/fsbl.bif -w -o boot/BOOT.bin
 
 boot: fpga boot/BOOT.bin
