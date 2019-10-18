@@ -26,13 +26,11 @@ do_start() {
     # Start the pll and send the output as UDP broadcast
     ${ROOT}/bin/pll.pl | nc -u -b 192.168.124.255 4010&
 
-    # Initially set the time and display the time
-    ${ROOT}/bin/settime.sh
+    # Display the time
     ${ROOT}/bin/rottime.sh &
     
     # Wait for the pll to lock
     sleep 800
-    ${ROOT}/bin/settime.sh
     service ntp start
 }
 

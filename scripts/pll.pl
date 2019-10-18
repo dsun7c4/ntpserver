@@ -12,8 +12,10 @@ my $g_sim  = 0;
 
 my $pfd_reg     = 0x80600110;
 my $fd_reg      = 0x80600114;
-my $vc_reg      = 0x80600124;
 my $ppscnt_reg  = 0x80600118;
+my $ctime_reg   = 0x8060011c;
+my $stime_reg   = 0x80600120;
+my $vc_reg      = 0x80600124;
 
 sub usage
 {
@@ -102,6 +104,110 @@ sub i2cset
     return ($ret);
 }
 
+sub read_xadc
+{
+    my $base = 0x43c00000;
+    my $temp_raw;
+    my $temp;
+
+    $temp_raw = peek($base + 0x200) >> 4;
+    $temp     = $temp_raw * 503.975 / 4096.0 - 273.15;
+
+    return $temp;
+
+}
+
+sub init_ltc2990
+{
+
+    i2cset(1, 0x4c, 1, 0x19);
+    i2cset(1, 0x4c, 2, 0);
+
+}
+
+sub read_ltc2990
+{
+    my $temp_raw_msb;
+    my $temp_raw_lsb;
+    my $temp_raw;
+    my $temp;
+    my $volt_raw_msb;
+    my $volt_raw_lsb;
+    my $volt_raw;
+    my $volt;
+    my $tint;
+    my $iocxo;
+    my $tocxo;
+
+    $temp_raw_msb  = i2cget(1, 0x4c, 4);
+    $temp_raw_lsb  = i2cget(1, 0x4c, 5);
+    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
+    $temp          = $temp_raw;
+    $temp          = $temp - 0x2000 if ($temp >= 0x1000);
+    $tint          = $temp * 0.0625;
+
+    $volt_raw_msb  = i2cget(1, 0x4c, 6);
+    $volt_raw_lsb  = i2cget(1, 0x4c, 7);
+    $volt_raw      = ($volt_raw_msb & 0x7f) << 8 | $volt_raw_lsb;
+    $volt          = $volt_raw;
+    $volt         -= 0x8000 if ($volt >= 0x4000);
+    $volt          = $volt * 19.42e-6;
+    $iocxo         = $volt / 0.1;
+
+    $temp_raw_msb  = i2cget(1, 0x4c, 0xa);
+    $temp_raw_lsb  = i2cget(1, 0x4c, 0xb);
+    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
+    $temp          = $temp_raw;
+    $temp          = $temp - 0x2000 if ($temp >= 0x1000);
+    $tocxo         = $temp * 0.0625;
+
+    return ($tint, $iocxo, $tocxo);
+
+}
+
+sub init_adt7410
+{
+
+    i2cset(2, 0x48, 3, 0x80);
+    i2cset(2, 0x49, 3, 0x80);
+
+}
+
+
+sub read_adt7410
+{
+    my $temp_raw_msb;
+    my $temp_raw_lsb;
+    my $temp_raw;
+    my $temp;
+    my $tcpu;
+    my $tedge;
+
+
+    $temp_raw_msb  = i2cget(2, 0x48, 0);
+    $temp_raw_lsb  = i2cget(2, 0x48, 1);
+    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
+    $temp          = $temp_raw;
+    $temp         -= 0x10000 if ($temp >= 0x8000);
+    $tcpu          = $temp * 0.0078125;
+
+    $temp_raw_msb  = i2cget(2, 0x49, 0);
+    $temp_raw_lsb  = i2cget(2, 0x49, 1);
+    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
+    $temp          = $temp_raw;
+    $temp         -= 0x10000 if ($temp >= 0x8000);
+    $tedge         = $temp * 0.0078125;
+
+    return ($tcpu, $tedge);
+
+}
+
+sub init_sensors
+{
+    init_ltc2990;
+    init_adt7410;
+}
+
 sub init_pll
 {
     my $val;
@@ -137,20 +243,94 @@ sub wait_for_gps
     }
 }
 
+sub sensors
+{
+    my $temp;
+    my $tcpu;
+    my $tedge;
+    my $tint;
+    my $iocxo;
+    my $tocxo;
+
+    $temp                   = read_xadc;
+    ($tcpu, $tedge)         = read_adt7410;
+    ($tint, $iocxo, $tocxo) = read_ltc2990;
+
+    return ($temp, $tint, $iocxo, $tocxo, $tcpu, $tedge);
+}
+
+sub set_time
+{
+    my ($epoc) = @_;
+    my $sec;
+    my $min;
+    my $hour;
+    my $other;
+    my $set_x;
+
+    # HMS time one second later
+    ($sec, $min, $hour, $other) = localtime($epoc + 1);
+
+    $set_x = sprintf("%02d%02d%02d", $hour, $min, $sec);
+    poke($stime_reg, hex($set_x));
+    
+    printf("# Setting time to %s  %02d:%02d:%02d\n", $set_x, $hour, $min, $sec);
+}
+
+sub display_rtc
+{
+    my $epoc;
+    my $sec;
+    my $min;
+    my $hour;
+    my $other;
+    my $c_time;
+    my $c_sec;
+    my $c_min;
+    my $c_hour;
+
+    $epoc = time;
+
+    ($sec, $min, $hour, $other) = localtime($epoc);
+    $c_time = peek($ctime_reg);
+    $c_hour = 
+	(($c_time >> 28) & 0xf) * 10 + 
+	(($c_time >> 24) & 0xf);
+    if ($c_hour != $hour) {
+	set_time($epoc);
+    } else {
+	$c_min = 
+	    (($c_time >> 20) & 0xf) * 10 + 
+	    (($c_time >> 16) & 0xf);
+	if ($c_min != $min) {
+	    set_time($epoc);
+	} else {
+	    $c_sec = 
+		(($c_time >> 12) & 0xf) * 10 + 
+		(($c_time >>  8) & 0xf);
+	    if ($c_sec != $sec) {
+		set_time($epoc);
+	    }
+	}
+    }
+
+}
 
 sub loworder
 {
     my $mode     = 0;
     my $hold     = 0;
+    my $wait     = 0;
+
+    my $temp;
+    my $tcpu;
+    my $tedge;
+    my $tint;
+    my $iocxo;
+    my $tocxo;
 
     my $vc       = 0.0;
-    my $residual = 0.0;
-
-    # my $alpha1   = 1.0;
-    # my $gain1    = 10.0;
-    # my $alpha2   = 1.0;
-    # my $gain2    = 0.015;
-    # my $gain3    = 1.0;
+    my $residual = 3840.0;
 
     my $alpha1   = 0.3;
     my $gain1    = 10.0;
@@ -158,43 +338,42 @@ sub loworder
     my $gain2    = 0.007;
     my $gain3    = 1.0;
 
-    # my $alpha1   = 0.3 / 10.0;
-    # my $gain1    = 10.0;
-    # my $alpha2   = 1.0;
-    # my $gain2    = 0.007 / 10.0;
-    # my $gain3    = 1.0;
-
     my $pfd_raw;
     my $pfd;
+    my $pfd_last;
     my $fd_raw;
     my $fd;
     my $error;
     my $val;
-#    my $last_vc;
     my $microseconds;
     my $tmp;
     my $i;
     my $status;
     my $lock_cnt;
 
-    
+
     for ($i = 0; $i < 3; $i++) {
 	$pfd_raw  = peek($pfd_reg);
 	$pfd      = $pfd_raw;
 	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
 	$val      = peek($vc_reg);
 	printf ("# 0x%08x 0 %10.0f 0 0 0 0 0\n", $pfd_raw, $pfd);
-	if (abs($pfd) > 5400000) {
-	    printf ("# Resetting PFD\n");
-	    poke($vc_reg, $val | 0x300000);
-	    sleep (3);
-	}
+	sleep (1);
     }
+
+    # Reset the PFD
+    printf ("# Resetting PFD\n");
+    poke($vc_reg, $val | 0x300000);
+    sleep (3);
+
+    # Set the time after a PFD jump to align ms counters
+    set_time(time);
 
     while (1) {
 
 	# Read Phase Frequency Dector
 	# Phase error step 2*pi/100e6, Kd = 100e6
+	$pfd_last = $pfd;
 	$pfd_raw  = peek($pfd_reg);
 	$fd_raw   = peek($fd_reg);
 	$pfd      = $pfd_raw;
@@ -202,36 +381,42 @@ sub loworder
 	$fd       = $fd_raw;
 	$fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
 
-	# Gain
-	$error    = $error * ( 1.0 - $alpha1) + $pfd * $gain1 * $alpha1;
+	# Detect a large jump in phase when in slow responce mode
+	if ($mode == 1 && abs($pfd - $pfd_last) > 50) {
+	    $hold = 1;
+	    # Hold OCXO control voltage for 30 minutes
+	    $wait = 1800;
+	}
 
-	# Filter
-#	$last_vc  = $vc;
-	$vc       = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
-#	if (abs($fd) < 10) {
-#	    $residual += $error * 0.1;
+	if (! $hold) {
+	    # Gain
+	    $error    = $error * ( 1.0 - $alpha1) + $pfd * $gain1 * $alpha1;
+
+	    # Filter
+	    $vc       = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
 	    $residual += $error * $gain2;
-#	}	    
-	
-#	$vc       = $vc + $error * $alpha2;
 
-	$val      = int($vc * $gain3 + 32768);
+	    $val      = int($vc * $gain3 + 32768);
 
-	# Clamp
-	if ($val > 65535) {
-	    $val = 65535;
-	    $vc  = 32767.0 / $gain3;
-	} elsif ($val < 0) {
-	    $val = 0;
-	    $vc  = -32768.0 / $gain3;
+	    # Clip/clamp to 16 bits
+	    if ($val > 65535) {
+		$val = 65535;
+		$vc  = 32767.0 / $gain3;
+	    } elsif ($val < 0) {
+		$val = 0;
+		$vc  = -32768.0 / $gain3;
+	    }
 	}
 
         $status   = peek($vc_reg);
 	poke($vc_reg, $val);
 
-	printf("0x%08x  0x%08x  %3.0f %3.0f  %10f  %12f %12f  0x%04x  %d %d %d\n", 
-	       $pfd_raw, $fd_raw, $pfd, $fd, $error, $residual, $vc, $val,
-	       $status & 0x00800000 ? 1 : 0, $lock_cnt, $mode);
+	($temp, $tint, $iocxo, $tocxo, $tcpu, $tedge) = sensors;
+
+	printf("%f %.4f  %fA %.4f  %f %f  %.0f %.0f  %f  %f %f  0x%04x  %d %d %d %d\n",
+	       $temp, $tint, $iocxo, $tocxo, $tcpu, $tedge,
+	       $pfd, $fd, $error, $residual, $vc, $val,
+	       $status & 0x00800000 ? 1 : 0, $lock_cnt, $mode, $hold);
 
 	if ($pfd == 0) {
 	    $lock_cnt++;
@@ -240,7 +425,7 @@ sub loworder
 	}
 
 	# Switch time constants when we are in lock
-	if ($lock_cnt > 20) {
+	if (! $hold && $lock_cnt > 20) {
 	    $alpha1   = 0.3 / 10.0;
 	    $gain1    = 10.0;
 	    $alpha2   = 1.0;
@@ -256,6 +441,18 @@ sub loworder
 	    $mode     = 0;
 	}
 
+	# Turn off hold after wait timer runs out
+	if ($hold) {
+	    $wait--;
+	    if ($wait <= 0) {
+		$hold = 0;
+	    }
+	}
+
+	# Compare display time to local time for daylight savings or leap second
+	display_rtc;
+
+	# Wait +200mS after the second for the phase detector
 	($tmp, $microseconds) = Time::HiRes::gettimeofday;
 	Time::HiRes::usleep(1000000 - $microseconds + 200000) if (!$g_sim);
     }
@@ -270,6 +467,7 @@ $g_sim  = 1 if ($Getopt::Std::opt_s);
 usage("")   if $Getopt::Std::opt_h;
 
 
+init_sensors;
 init_pll;
 
 wait_for_gps;
