@@ -48,10 +48,10 @@ sub poke
 
 sub i2cget
 {
-    my($bus, $addr, $reg) = @_;
+    my($bus, $addr, $reg, $mode) = @_;
     my $val;
 
-    $val = `i2cget -y $bus $addr $reg`;
+    $val = `i2cget -y $bus $addr $reg $mode`;
 
     return (hex($val));
 }
@@ -128,45 +128,37 @@ sub init_ltc2990
 
 sub read_ltc2990
 {
-    my $temp_raw_msb;
-    my $temp_raw_lsb;
     my $temp_raw;
     my $temp;
-    my $volt_raw_msb;
-    my $volt_raw_lsb;
     my $volt_raw;
     my $volt;
 
-    $temp_raw_msb  = i2cget(1, 0x4c, 4);
-    $temp_raw_lsb  = i2cget(1, 0x4c, 5);
-    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
-    $temp          = $temp - 0x2000 if ($temp >= 0x1000);
+    $temp_raw      = i2cget(1, 0x4c, 4, "w");
+    $temp_raw      = unpack("S>", pack("S", $temp_raw));
+    $temp          = $temp_raw & 0x1fff;
+    $temp         -= 0x2000 if ($temp >= 0x1000);
     $temp          = $temp * 0.0625;
     printf("Tint      0x%04x  %f\n", $temp_raw, $temp);
     
-    $volt_raw_msb  = i2cget(1, 0x4c, 6);
-    $volt_raw_lsb  = i2cget(1, 0x4c, 7);
-    $volt_raw      = ($volt_raw_msb & 0x7f) << 8 | $volt_raw_lsb;
-    $volt          = $volt_raw;
+    $volt_raw      = i2cget(1, 0x4c, 6, "w");
+    $volt_raw      = unpack("S>", pack("S", $volt_raw));
+    $volt          = $volt_raw & 0x7fff;
     $volt         -= 0x8000 if ($volt >= 0x4000);
     $volt          = $volt * 19.42e-6;
     printf("V1-V2     0x%04x  %f\n", $volt_raw, $volt);
     printf("Iv1-v2            %f\n", $volt / 0.1);
     
-    $temp_raw_msb  = i2cget(1, 0x4c, 0xa);
-    $temp_raw_lsb  = i2cget(1, 0x4c, 0xb);
-    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
-    $temp          = $temp - 0x2000 if ($temp >= 0x1000);
+    $temp_raw      = i2cget(1, 0x4c, 0xa, "w");
+    $temp_raw      = unpack("S>", pack("S", $temp_raw));
+    $temp          = $temp_raw & 0x1fff;
+    $temp         -= 0x2000 if ($temp >= 0x1000);
     $temp          = $temp * 0.0625;
     printf("Tr2       0x%04x  %f\n", $temp_raw, $temp);
     
-    $volt_raw_msb  = i2cget(1, 0x4c, 0xe);
-    $volt_raw_lsb  = i2cget(1, 0x4c, 0xf);
-    $volt_raw      = ($volt_raw_msb & 0x7f) << 8 | $volt_raw_lsb;
-    $volt          = $volt_raw;
-    $volt         -= 0x8000 if ($volt_raw >= 0x4000);
+    $volt_raw      = i2cget(1, 0x4c, 0xe, "w");
+    $volt_raw      = unpack("S>", pack("S", $volt_raw));
+    $volt          = $volt_raw & 0x7fff;
+    $volt         -= 0x8000 if ($volt >= 0x4000);
     $volt          = 2.5 + $volt * 305.18e-6;
     printf("Vcc       0x%04x  %f\n", $volt_raw, $volt);
 
@@ -190,20 +182,14 @@ sub read_adt7410
     my $temp;
 
 
-    $temp_raw_msb  = i2cget(2, 0x48, 0);
-    $temp_raw_lsb  = i2cget(2, 0x48, 1);
-    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
-    $temp         -= 0x10000 if ($temp >= 0x8000);
-    $temp          = $temp * 0.0078125;
+    $temp_raw      = i2cget(2, 0x48, 0, "w");
+    $temp_raw      = unpack("s>", pack("S", $temp_raw));
+    $temp          = $temp_raw * 0.0078125;
     printf("Tcpu      0x%04x  %f\n", $temp_raw, $temp);
     
-    $temp_raw_msb  = i2cget(2, 0x49, 0);
-    $temp_raw_lsb  = i2cget(2, 0x49, 1);
-    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
-    $temp         -= 0x10000 if ($temp >= 0x8000);
-    $temp          = $temp * 0.0078125;
+    $temp_raw      = i2cget(2, 0x49, 0, "w");
+    $temp_raw      = unpack("s>", pack("S", $temp_raw));
+    $temp          = $temp_raw * 0.0078125;
     printf("Tedge     0x%04x  %f\n", $temp_raw, $temp);
     
 }

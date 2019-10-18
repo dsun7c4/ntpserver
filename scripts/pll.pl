@@ -86,10 +86,10 @@ sub poke
 
 sub i2cget
 {
-    my($bus, $addr, $reg) = @_;
+    my($bus, $addr, $reg, $mode) = @_;
     my $val;
 
-    $val = `i2cget -y $bus $addr $reg`;
+    $val = `i2cget -y $bus $addr $reg $mode`;
 
     return (hex($val));
 }
@@ -139,25 +139,22 @@ sub read_ltc2990
     my $iocxo;
     my $tocxo;
 
-    $temp_raw_msb  = i2cget(1, 0x4c, 4);
-    $temp_raw_lsb  = i2cget(1, 0x4c, 5);
-    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
+    $temp_raw      = i2cget(1, 0x4c, 4, "w");
+    $temp_raw      = unpack("S>", pack("S", $temp_raw));
+    $temp          = $temp_raw & 0x1fff;
     $temp          = $temp - 0x2000 if ($temp >= 0x1000);
     $tint          = $temp * 0.0625;
 
-    $volt_raw_msb  = i2cget(1, 0x4c, 6);
-    $volt_raw_lsb  = i2cget(1, 0x4c, 7);
-    $volt_raw      = ($volt_raw_msb & 0x7f) << 8 | $volt_raw_lsb;
-    $volt          = $volt_raw;
+    $volt_raw      = i2cget(1, 0x4c, 6, "w");
+    $volt_raw      = unpack("S>", pack("S", $volt_raw));
+    $volt          = $volt_raw & 0x7fff;
     $volt         -= 0x8000 if ($volt >= 0x4000);
     $volt          = $volt * 19.42e-6;
     $iocxo         = $volt / 0.1;
 
-    $temp_raw_msb  = i2cget(1, 0x4c, 0xa);
-    $temp_raw_lsb  = i2cget(1, 0x4c, 0xb);
-    $temp_raw      = ($temp_raw_msb & 0x1f) << 8 | $temp_raw_lsb;
-    $temp          = $temp_raw;
+    $temp_raw      = i2cget(1, 0x4c, 0xa, "w");
+    $temp_raw      = unpack("S>", pack("S", $temp_raw));
+    $temp          = $temp_raw & 0x1fff;
     $temp          = $temp - 0x2000 if ($temp >= 0x1000);
     $tocxo         = $temp * 0.0625;
 
@@ -176,24 +173,20 @@ sub init_adt7410
 
 sub read_adt7410
 {
-    my $temp_raw_msb;
-    my $temp_raw_lsb;
     my $temp_raw;
     my $temp;
     my $tcpu;
     my $tedge;
 
 
-    $temp_raw_msb  = i2cget(2, 0x48, 0);
-    $temp_raw_lsb  = i2cget(2, 0x48, 1);
-    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
+    $temp_raw      = i2cget(2, 0x48, 0, "w");
+    $temp_raw      = unpack("s>", pack("S", $temp_raw));
     $temp          = $temp_raw;
     $temp         -= 0x10000 if ($temp >= 0x8000);
     $tcpu          = $temp * 0.0078125;
 
-    $temp_raw_msb  = i2cget(2, 0x49, 0);
-    $temp_raw_lsb  = i2cget(2, 0x49, 1);
-    $temp_raw      = $temp_raw_msb << 8 | $temp_raw_lsb;
+    $temp_raw      = i2cget(2, 0x49, 0, "w");
+    $temp_raw      = unpack("s>", pack("S", $temp_raw));
     $temp          = $temp_raw;
     $temp         -= 0x10000 if ($temp >= 0x8000);
     $tedge         = $temp * 0.0078125;
@@ -273,7 +266,7 @@ sub set_time
 
     $set_x = sprintf("%02d%02d%02d", $hour, $min, $sec);
     poke($stime_reg, hex($set_x));
-    
+
     printf("# Setting time to %s  %02d:%02d:%02d\n", $set_x, $hour, $min, $sec);
 }
 
@@ -293,20 +286,20 @@ sub display_rtc
 
     ($sec, $min, $hour, $other) = localtime($epoc);
     $c_time = peek($ctime_reg);
-    $c_hour = 
-	(($c_time >> 28) & 0xf) * 10 + 
+    $c_hour =
+	(($c_time >> 28) & 0xf) * 10 +
 	(($c_time >> 24) & 0xf);
     if ($c_hour != $hour) {
 	set_time($epoc);
     } else {
-	$c_min = 
-	    (($c_time >> 20) & 0xf) * 10 + 
+	$c_min =
+	    (($c_time >> 20) & 0xf) * 10 +
 	    (($c_time >> 16) & 0xf);
 	if ($c_min != $min) {
 	    set_time($epoc);
 	} else {
-	    $c_sec = 
-		(($c_time >> 12) & 0xf) * 10 + 
+	    $c_sec =
+		(($c_time >> 12) & 0xf) * 10 +
 		(($c_time >>  8) & 0xf);
 	    if ($c_sec != $sec) {
 		set_time($epoc);

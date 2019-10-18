@@ -34,14 +34,14 @@
     The 3D model source for the kicad components.
   * ponoko
 
-    File sent to [ponoko](https://www.ponoko.com/) to make the OXCO cover and experimental parts for the case.
+    File sent to [ponoko](https://www.ponoko.com/) to make the OXCO cover, air duct for the fan, red acrylic filter for the display, and experimental parts for the case.
 * kicad
   * 2x7seg
 
     2 Digit 7-segment display board.  Designed to be strung together to any length.
   * clock
 
-    Tme mainboard for the clock.
+    The mainboard for the clock.
   * lib
 
     kicad schematic library components.
