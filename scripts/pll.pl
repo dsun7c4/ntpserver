@@ -53,6 +53,11 @@ sub peek
     }
 
     $val = `/root/bin/peek $addr`;
+    if ($? != 0) {
+	printf ("# peek(0x%x): returned %d, %d\n",
+		$addr,
+		$? >> 8, $? & 127);
+    }
 
     return (hex($val));
 }
@@ -80,6 +85,11 @@ sub poke
     }
 
     $ret = `/root/bin/poke $addr $val`;
+    if ($? != 0) {
+	printf ("# poke(0x%x, 0x%x): returned %d, %d\n",
+		$addr, $val,
+		$? >> 8, $? & 127);
+    }
 
     return ($ret);
 }
@@ -90,6 +100,11 @@ sub i2cget
     my $val;
 
     $val = `i2cget -y $bus $addr $reg $mode`;
+    if ($? != 0) {
+	printf ("# i2cget(%d, 0x%x, 0x%x, %d): returned %d, %d\n",
+		$bus, $addr, $reg, $mode,
+		$? >> 8, $? & 127);
+    }
 
     return (hex($val));
 }
@@ -100,6 +115,11 @@ sub i2cset
     my $ret;
 
     $val = `i2cset -y $bus $addr $reg $val`;
+    if ($? != 0) {
+	printf ("# i2cset(%d, 0x%x, 0x%x, 0x%x): returned %d, %d\n",
+		$bus, $addr, $reg, $val,
+		$? >> 8, $? & 127);
+    }
 
     return ($ret);
 }
@@ -380,8 +400,8 @@ sub loworder
 	# slow response mode
 	if ($mode == 1 && (abs($pfd - $pfd_last) > 10 || $status)) {
 	    $hold     = 1;
-	    # Hold OCXO control voltage for 30 minutes
-	    $wait     = 1800;
+	    # Hold OCXO control voltage for 15 minutes
+	    $wait     = 900;
 	    # Clear error
 	    $error    = 0.0;
 	    # Set time constant to fast mode
