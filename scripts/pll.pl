@@ -364,7 +364,7 @@ sub loworder
 
     while (1) {
 
-	# Read Phase Frequency Dector
+	# Read Phase Frequency Detector
 	# Phase error step 2*pi/100e6, Kd = 100e6
 	$pfd_last = $pfd;
 	$pfd_raw  = peek($pfd_reg);
@@ -373,12 +373,24 @@ sub loworder
 	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
 	$fd       = $fd_raw;
 	$fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
+	# Check PFD status, 1 = in re-sync mode
+        $status   = peek($vc_reg) & 0x00800000 ? 1 : 0;
 
-	# Detect a large jump in phase when in slow responce mode
-	if ($mode == 1 && abs($pfd - $pfd_last) > 50) {
-	    $hold = 1;
+	# Detect a large jump in phase or dropped pps from GPS when in
+	# slow response mode
+	if ($mode == 1 && (abs($pfd - $pfd_last) > 10 || $status)) {
+	    $hold     = 1;
 	    # Hold OCXO control voltage for 30 minutes
-	    $wait = 1800;
+	    $wait     = 1800;
+	    # Clear error
+	    $error    = 0.0;
+	    # Set time constant to fast mode
+	    $alpha1   = 0.3;
+	    $gain1    = 10.0;
+	    $alpha2   = 1.0;
+	    $gain2    = 0.007;
+	    $gain3    = 1.0;
+	    $mode     = 0;
 	}
 
 	if (! $hold) {
@@ -389,27 +401,32 @@ sub loworder
 	    $vc       = $vc * (1.0 - $alpha2) + $error * $alpha2 + $residual;
 	    $residual += $error * $gain2;
 
-	    $val      = int($vc * $gain3 + 32768);
-
-	    # Clip/clamp to 16 bits
-	    if ($val > 65535) {
-		$val = 65535;
-		$vc  = 32767.0 / $gain3;
-	    } elsif ($val < 0) {
-		$val = 0;
-		$vc  = -32768.0 / $gain3;
-	    }
 	}
 
-        $status   = peek($vc_reg);
+	$val      = int($vc * $gain3 + 32768);
+
+	# Clip/clamp to 16 bits
+	if ($val > 65535) {
+	    $val = 65535;
+	    $vc  = 32767.0 / $gain3;
+	} elsif ($val < 0) {
+	    $val = 0;
+	    $vc  = -32768.0 / $gain3;
+	}
+
 	poke($vc_reg, $val);
 
 	($temp, $tint, $iocxo, $tocxo, $tcpu, $tedge) = sensors;
 
 	printf("%f %.4f  %fA %.4f  %f %f  %.0f %.0f  %f  %f %f  0x%04x  %d %d %d %d\n",
-	       $temp, $tint, $iocxo, $tocxo, $tcpu, $tedge,
-	       $pfd, $fd, $error, $residual, $vc, $val,
-	       $status & 0x00800000 ? 1 : 0, $lock_cnt, $mode, $hold);
+	       $temp, $tint,
+	       $iocxo, $tocxo,
+	       $tcpu, $tedge,
+	       $pfd, $fd,
+	       $error,
+	       $residual, $vc,
+	       $val,
+	       $status, $lock_cnt, $mode, $hold);
 
 	if ($pfd == 0) {
 	    $lock_cnt++;

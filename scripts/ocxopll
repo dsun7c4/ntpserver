@@ -4,7 +4,7 @@
 # Required-Start:    $all
 # Required-Stop:
 # Default-Start:     2 3 4 5
-# Default-Stop:
+# Default-Stop:      0 1 6
 # Short-Description: Start the ocxo pll
 ### END INIT INFO
 
@@ -30,8 +30,12 @@ do_start() {
     ${ROOT}/bin/rottime.sh &
     
     # Wait for the pll to lock
-    sleep 800
-    service ntp start
+    sleep 800 && service ntp start&
+}
+
+do_stop() {
+    # Stop the ntp service
+    service ntp stop
 }
 
 case "$1" in
@@ -43,6 +47,7 @@ case "$1" in
         exit 3
         ;;
     stop)
+	do_stop
         ;;
     *)
         echo "Usage: $0 start|stop" >&2
