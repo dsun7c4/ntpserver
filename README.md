@@ -29,9 +29,6 @@
     * assembly.fcstd
 
       Top level case assembly incorporating all other files in this directory
-  * mod/local.pretty/packages3d
-
-    The 3D model source for the kicad components.
   * ponoko
 
     File sent to [ponoko](https://www.ponoko.com/) to make the OXCO cover, air duct for the fan, red acrylic filter for the display, and experimental parts for the case.
@@ -42,12 +39,6 @@
   * clock
 
     The mainboard for the clock.
-  * lib
-
-    kicad schematic library components.
-  * mod/local.pretty
-
-    Local PCB components for kicad containing parts used in 2x7seg, clock, and term.  The 3d model paths are hard coded with full path to the file.
   * rj45brkout
 
     Break out board for the panel mount RJ45 Ethernet connector.
