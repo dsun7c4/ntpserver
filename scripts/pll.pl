@@ -98,12 +98,18 @@ sub i2cget
 {
     my($bus, $addr, $reg, $mode) = @_;
     my $val;
+    my $i;
 
-    $val = `i2cget -y $bus $addr $reg $mode`;
-    if ($? != 0) {
-	printf ("# i2cget(%d, 0x%x, 0x%x, %d): returned %d, %d\n",
-		$bus, $addr, $reg, $mode,
-		$? >> 8, $? & 127);
+    # Retry one time on read, in case of read failure on temperature sensor
+    for ($i = 0; $i < 2; $i++) {
+	$val = `i2cget -y $bus $addr $reg $mode`;
+	if ($? != 0) {
+	    printf ("# i2cget(%d, 0x%x, 0x%x, %s): returned %d, %d\n",
+		    $bus, $addr, $reg, $mode,
+		    $? >> 8, $? & 127);
+	} else {
+	    last;
+	}
     }
 
     return (hex($val));
@@ -190,7 +196,6 @@ sub init_adt7410
 
 }
 
-
 sub read_adt7410
 {
     my $temp_raw;
@@ -219,6 +224,10 @@ sub init_sensors
 {
     init_ltc2990;
     init_adt7410;
+
+    # The first temperature read from the Xilinx xadc seems to return
+    # a bogus value ie. 1045.231866
+    read_xadc;
 }
 
 sub init_pll
@@ -233,7 +242,7 @@ sub init_pll
     poke($gpio, $val);
 }
 
-
+# Wait up to 10 minutes for 10 pps ticks from the GPS receiver
 sub wait_for_gps
 {
     my $pps_cnt = 0;
@@ -290,6 +299,8 @@ sub set_time
     printf("# Setting time to %s  %02d:%02d:%02d\n", $set_x, $hour, $min, $sec);
 }
 
+# Compare the displayed time with the system TZ time and update the
+# display if needed
 sub display_rtc
 {
     my $epoc;
@@ -343,7 +354,7 @@ sub loworder
     my $tocxo;
 
     my $vc       = 0.0;
-    my $residual = 3840.0;
+    my $residual = 3584.0;
 
     my $alpha1   = 0.3;
     my $gain1    = 10.0;
@@ -404,6 +415,7 @@ sub loworder
 	    $wait     = 900;
 	    # Clear error
 	    $error    = 0.0;
+	    $vc       = $vc * (1.0 - $alpha2) + $residual;
 	    # Set time constant to fast mode
 	    $alpha1   = 0.3;
 	    $gain1    = 10.0;
