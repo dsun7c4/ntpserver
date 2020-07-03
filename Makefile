@@ -2,17 +2,23 @@
 ######################################################################
 #  Xilinx u-boot build
 
-u-boot/board/xilinx/zynq/ps7_init_gpl.c: fpga/cpu/ip/cpu_processing_system7_0_0/ps7_init_gpl.c
-	cp $? $@
+# u-boot version 2020.1 has these ps7_init files, not sure if a custom
+# one is needed
+#u-boot/board/xilinx/zynq/zynq-microzed/ps7_init_gpl.c: fpga/cpu/ip/cpu_processing_system7_0_0/ps7_init_gpl.c
+#	cp $? $@
 
-u-boot/board/xilinx/zynq/ps7_init_gpl.h: fpga/cpu/ip/cpu_processing_system7_0_0/ps7_init_gpl.h
-	cp $? $@
+#u-boot/board/xilinx/zynq/zynq-microzed/ps7_init_gpl.h: fpga/cpu/ip/cpu_processing_system7_0_0/ps7_init_gpl.h
+#	cp $? $@
 
-u-boot/u-boot: u-boot/board/xilinx/zynq/ps7_init_gpl.h u-boot/board/xilinx/zynq/ps7_init_gpl.c 
-	${MAKE} -C u-boot zynq_microzed_defconfig
-	${MAKE} -C u-boot CROSS_COMPILE=arm-xilinx-linux-gnueabi-
+# Use host cross compiler to build instead of the one in the SDK
+u-boot/u-boot.elf:
+	export DEVICE_TREE=zynq-microzed && ${MAKE} -C u-boot xilinx_zynq_virt_defconfig
+	export DEVICE_TREE=zynq-microzed && ${MAKE} -C u-boot CROSS_COMPILE=arm-linux-gnueabihf-
 
-u-boot: u-boot/u-boot
+boot/boot.scr: boot/boot.script
+	mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "Clock boot script" -d $? $@
+
+u-boot: u-boot/u-boot.elf boot/boot.scr
 
 
 ######################################################################
@@ -29,9 +35,9 @@ fpga: boot/system.bit.bin
 
 ######################################################################
 #  Xilinx boot ROM
-u-boot/u-boot.elf: u-boot/u-boot
-	cp $? $@
-	arm-xilinx-linux-gnueabi-strip $@
+#u-boot/u-boot.elf: u-boot/u-boot
+#	cp $? $@
+#	arm-xilinx-linux-gnueabi-strip $@
 
 boot/BOOT.bin: scripts/fsbl.bif fpga/vhd/fsbl/clock/Release/clock.elf u-boot/u-boot.elf
 	bootgen -image scripts/fsbl.bif -w -o boot/BOOT.bin

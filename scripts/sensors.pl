@@ -5,7 +5,12 @@ use strict;
 
 $0 =~ s:^.*/::g;
 
-my $g_init = 0;
+my $g_init  = 0;
+my $g_xadc  = 0;
+my $g_curr  = 0;
+my $g_temp0 = 0;
+my $g_temp1 = 0;
+my $g_fan   = 0;
 
 sub usage
 {
@@ -21,7 +26,13 @@ Read sensors
 
 Options:
    -h             This message.
+
+   -c             Read current sensor
+   -f             Read fan speed        
    -i             Initialize sensors
+   -t             Read temperature sensor 0
+   -u             Read temperature sensor 1
+   -x             Read xadc sensors
 EOF
 
 }
@@ -168,8 +179,12 @@ sub read_ltc2990
 sub init_adt7410
 {
 
-    i2cset(2, 0x48, 3, 0x80);
-    i2cset(2, 0x49, 3, 0x80);
+    if ($g_temp0) {
+	i2cset(2, 0x48, 3, 0x80);
+    }
+    if ($g_temp1) {
+	i2cset(2, 0x49, 3, 0x80);
+    }
 
 }
 
@@ -181,38 +196,62 @@ sub read_adt7410
     my $temp_raw;
     my $temp;
 
+    if ($g_temp0) {
+	$temp_raw      = i2cget(2, 0x48, 0, "w");
+	$temp_raw      = unpack("s>", pack("S", $temp_raw));
+	$temp          = $temp_raw * 0.0078125;
+	printf("Tcpu      0x%04x  %f\n", $temp_raw, $temp);
+    }
 
-    $temp_raw      = i2cget(2, 0x48, 0, "w");
-    $temp_raw      = unpack("s>", pack("S", $temp_raw));
-    $temp          = $temp_raw * 0.0078125;
-    printf("Tcpu      0x%04x  %f\n", $temp_raw, $temp);
-    
-    $temp_raw      = i2cget(2, 0x49, 0, "w");
-    $temp_raw      = unpack("s>", pack("S", $temp_raw));
-    $temp          = $temp_raw * 0.0078125;
-    printf("Tedge     0x%04x  %f\n", $temp_raw, $temp);
-    
+    if ($g_temp1) {
+	$temp_raw      = i2cget(2, 0x49, 0, "w");
+	$temp_raw      = unpack("s>", pack("S", $temp_raw));
+	$temp          = $temp_raw * 0.0078125;
+	printf("Tedge     0x%04x  %f\n", $temp_raw, $temp);
+    }    
 }
 
 
-getopts('hi');
-$g_init = 1 if ($Getopt::Std::opt_i);
+getopts('hcfitux');
+$g_curr  = 1 if ($Getopt::Std::opt_c);
+$g_fan   = 1 if ($Getopt::Std::opt_f);
+$g_init  = 1 if ($Getopt::Std::opt_i);
+$g_temp0 = 1 if ($Getopt::Std::opt_t);
+$g_temp1 = 1 if ($Getopt::Std::opt_u);
+$g_xadc  = 1 if ($Getopt::Std::opt_x);
+if (($g_curr + $g_fan + $g_temp0 + $g_temp1 + $g_xadc) == 0) {
+    $g_curr  = 1;
+    $g_fan   = 1;
+    $g_temp0 = 1;
+    $g_temp1 = 1;
+    $g_xadc  = 1;
+}
 usage("")   if $Getopt::Std::opt_h;
 
 
 if ($g_init) {
-    init_ltc2990;
+    if ($g_curr) {
+	init_ltc2990;
+    }
     init_adt7410;
 }
 
-read_xadc;
-read_ltc2990;
+if ($g_xadc) {
+    read_xadc;
+}
+
+if ($g_curr) {
+    read_ltc2990;
+}
+
 read_adt7410;
 
 
-my $fan_raw;
-my $fan_rpm;
+if ($g_fan) {
+    my $fan_raw;
+    my $fan_rpm;
 
-$fan_raw = peek(0x80600200) >> 12;
-$fan_rpm = 1.0e6 / $fan_raw / 2.0 * 60.0;
-printf("Fan       0x%04x  %f\n", $fan_raw, $fan_rpm);
+    $fan_raw = peek(0x80600200) >> 12;
+    $fan_rpm = 1.0e6 / $fan_raw / 2.0 * 60.0;
+    printf("Fan       0x%04x  %f\n", $fan_raw, $fan_rpm);
+}

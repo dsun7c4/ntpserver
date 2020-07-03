@@ -1,0 +1,19 @@
+echo -------------------- Booting clock fpga/kernel --------------------
+
+setenv ethaddr 00:0a:35:b0:0a:f1
+
+setenv loadbit_addr 0x100000
+
+setenv bitstream_image      system.bit.bin
+setenv deb_kernel_image     uImage_3.18.0
+setenv deb_devicetree_image devicetree_3.18.0.dtb
+
+setenv bootargs console=ttyPS1,115200 root=/dev/mmcblk0p2 ro rootwait earlyprintk
+
+if mmcinfo; then
+   echo Loading bitstream from SD/MMC/eMMC to RAM..
+   load mmc 0 ${loadbit_addr} ${bitstream_image} && fpga load 0 ${loadbit_addr} ${filesize}
+   echo
+   echo Copying Linux from SD to RAM...
+   load mmc 0 ${fdt_addr_r} ${deb_devicetree_image} && load mmc 0 ${kernel_addr_r} ${deb_kernel_image} && bootm ${kernel_addr_r} - ${fdt_addr_r}
+fi
