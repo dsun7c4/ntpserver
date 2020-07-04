@@ -12,8 +12,11 @@ setenv bootargs console=ttyPS1,115200 root=/dev/mmcblk0p2 ro rootwait earlyprint
 
 if mmcinfo; then
    echo Loading bitstream from SD/MMC/eMMC to RAM..
-   load mmc 0 ${loadbit_addr} ${bitstream_image} && fpga load 0 ${loadbit_addr} ${filesize}
+   load ${devtype} ${devnum}:${distro_bootpart} ${loadbit_addr} ${bitstream_image} && fpga load 0 ${loadbit_addr} ${filesize}
+   fpgadone=$?
    echo
-   echo Copying Linux from SD to RAM...
-   load mmc 0 ${fdt_addr_r} ${deb_devicetree_image} && load mmc 0 ${kernel_addr_r} ${deb_kernel_image} && bootm ${kernel_addr_r} - ${fdt_addr_r}
+   if test $fpgadone -eq 0; then
+      echo Copying Linux from SD to RAM...
+      load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} ${deb_devicetree_image} && load ${devtype} ${devnum}:${distro_bootpart} ${kernel_addr_r} ${deb_kernel_image} && bootm ${kernel_addr_r} - ${fdt_addr_r}
+   fi
 fi
