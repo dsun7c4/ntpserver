@@ -103,8 +103,9 @@ static int pps_fpga_probe(struct platform_device *pdev)
     u32 status;
 
     fpga = devm_kzalloc(&pdev->dev, sizeof(*fpga), GFP_KERNEL);
-    if (!fpga)
+    if (!fpga) {
 	return -ENOMEM;
+    }
     platform_set_drvdata(pdev, fpga);
 
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -116,7 +117,7 @@ static int pps_fpga_probe(struct platform_device *pdev)
 	return -ENXIO;
     }
 
-    dev_info(&pdev->dev, "%s:  Reg 0x%x-0x%x  irq: %d\n",
+    dev_info(&pdev->dev, "%s:  Reg: %x-%x  irq: %d\n",
 	     res->name, res->start, res->end, irq);
 
     /* FPGA base address */
