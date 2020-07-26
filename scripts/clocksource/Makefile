@@ -8,7 +8,7 @@ ifeq ($(KERNELRELEASE),)
 
     # Assume the source tree is where the running kernel was built
     # You should set KERNELDIR in the environment if it's elsewhere
-    KERNELDIR ?= $(shell readlink -f ../../l)
+    KERNELDIR ?= $(shell readlink -f ../../linux)
     # The current directory is passed to sub-makes as argument
     PWD := $(shell pwd)
 

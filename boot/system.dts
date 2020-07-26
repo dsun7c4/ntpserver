@@ -46,7 +46,10 @@
 	phy-handle = <&ethernet_phy>;
 
 	ethernet_phy: ethernet-phy@0 {
+/*		compatible = "marvell,88e1510"; */
 		reg = <0>;
+		/* LED settings for marvell 88e1512 phy */
+		marvell,reg-init = <3 16 0xff00 0x1e 3 17 0xfff0 0x00>;
 	};
 };
 
@@ -158,7 +161,7 @@
 	};
 
 	pps0: pps@80600000 {
-		compatible = "fpga,ocxo-pps-0.90";
+		compatible = "fpga,ocxo-pps-1.01";
 		interrupt-parent = <&intc>;
 		interrupts = <0 32 4 >;
 		reg = < 0x80600000 0x2000 >;
