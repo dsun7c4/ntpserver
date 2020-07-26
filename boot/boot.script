@@ -5,10 +5,10 @@ setenv ethaddr 00:0a:35:b0:0a:f1
 setenv loadbit_addr 0x100000
 
 setenv bitstream_image      system.bit.bin
-setenv deb_kernel_image     uImage_3.18.0
-setenv deb_devicetree_image devicetree_3.18.0.dtb
+setenv deb_kernel_image     uImage_4.19.0
+setenv deb_devicetree_image devicetree_4.19.0.dtb
 
-setenv bootargs console=ttyPS1,115200 root=/dev/mmcblk0p2 ro rootwait earlyprintk
+setenv bootargs console=ttyPS0,115200 root=/dev/mmcblk0p2 ro rootwait earlyprintk
 
 if mmcinfo; then
    echo Loading bitstream from SD/MMC/eMMC to RAM..
