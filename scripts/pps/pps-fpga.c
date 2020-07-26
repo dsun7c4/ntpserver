@@ -21,9 +21,11 @@
 
 #define PPS_FPGA_NAME "pps-fpga"
 
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/pps_kernel.h>
 #include <linux/io.h>
@@ -42,12 +44,12 @@
 #define FGPA_PPS_IRQ         0x80000000
 
 /* Device info */
-static struct pps_fpga_device_data {
+struct pps_fpga_device_data {
     int irq;                        /* IRQ used as PPS source */
     struct pps_device *pps;         /* PPS source device */
     struct pps_source_info info;    /* PPS source information */
     void __iomem *fpga_base;
-} fpga;
+};
 
 /*
  * Report the PPS event
@@ -55,116 +57,151 @@ static struct pps_fpga_device_data {
 
 static irqreturn_t pps_fpga_irq_handler(int irq, void *data)
 {
+    struct pps_fpga_device_data *fpga;
     struct pps_event_time ts;
     u32 now;
     u32 irq_cycle;
     u32 status;
 
+    fpga = data;
+
     /* Read the time stamp counter for interrupt latency measurement */
-    now = readl_relaxed(fpga.fpga_base + FPGA_TSC_LSW);
+    now = readl_relaxed(fpga->fpga_base + FPGA_TSC_LSW);
 
     /* Get the time stamp first */
     pps_get_ts(&ts);
 
     /* Check IRQ status is from pps */
-    status = readl_relaxed(fpga.fpga_base + FPGA_PPS_IRQ_STATUS);
+    status = readl_relaxed(fpga->fpga_base + FPGA_PPS_IRQ_STATUS);
     if (!(status & FGPA_PPS_IRQ)) {
 	return IRQ_NONE;
     }
 
     /* Clear IRQ */
-    writel_relaxed(status, fpga.fpga_base + FPGA_PPS_IRQ_STATUS);
+    writel_relaxed(status, fpga->fpga_base + FPGA_PPS_IRQ_STATUS);
 
     /* The time stamp counter at the interrupt */
-    irq_cycle = readl_relaxed(fpga.fpga_base + FPGA_TSC_IRQ_LSW);
+    irq_cycle = readl_relaxed(fpga->fpga_base + FPGA_TSC_IRQ_LSW);
         
     /* Set the pps offset to the measured interrupt latencey */
-    fpga.pps->params.assert_off_tu.sec  = 0;
-    fpga.pps->params.assert_off_tu.nsec = - ((u32) (now - irq_cycle)) * FPGA_CLK_NS;
+    fpga->pps->params.assert_off_tu.sec  = 0;
+    fpga->pps->params.assert_off_tu.nsec = - ((u32) (now - irq_cycle)) * FPGA_CLK_NS;
 
     /* Generate PPS event */
-    pps_event(fpga.pps, &ts, PPS_CAPTUREASSERT, NULL);
+    pps_event(fpga->pps, &ts, PPS_CAPTUREASSERT, NULL);
 
     return IRQ_HANDLED;
 }
 
-static int __init pps_fpga_init(void)
+static int pps_fpga_probe(struct platform_device *pdev)
 {
+    struct pps_fpga_device_data *fpga;
+    struct resource *res;
+    int irq;
     int ret;
     int pps_default_params;
     u32 status;
 
+    fpga = devm_kzalloc(&pdev->dev, sizeof(*fpga), GFP_KERNEL);
+    if (!fpga)
+	return -ENOMEM;
+    platform_set_drvdata(pdev, fpga);
+
+    res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+    if (!res) {
+	return -ENODEV;
+    }
+    irq = platform_get_irq(pdev, 0);
+    if (irq <= 0) {
+	return -ENXIO;
+    }
+
+    dev_info(&pdev->dev, "%s:  Reg 0x%x-0x%x  irq: %d\n",
+	     res->name, res->start, res->end, irq);
+
     /* FPGA base address */
-    fpga.fpga_base = ioremap(FPGA_BASE_ADDR, FPGA_BASE_ADDR_SIZE);
-    if (!fpga.fpga_base) {
-	printk(KERN_ALERT "invalid base address: 0x%p\n",
-	       (void *)FPGA_BASE_ADDR);
+    fpga->fpga_base = devm_ioremap_nocache(&pdev->dev, res->start, res->end - res->start + 1);
+    if (!fpga->fpga_base) {
+	dev_err(&pdev->dev, "Invalid base address: 0x%px\n", (void *)res->start);
 	return -EINVAL;
     }
 
 
     /* IRQ setup */
-    fpga.irq = 64;
-    status = readl_relaxed(fpga.fpga_base + FPGA_PPS_IRQ_ENABLE);
+    fpga->irq = irq;
+    status = readl_relaxed(fpga->fpga_base + FPGA_PPS_IRQ_ENABLE);
     status = (status & ~(FGPA_PPS_IRQ_TSC | FGPA_PPS_IRQ_GPS)) |
 	FGPA_PPS_IRQ_TSC;
-    writel_relaxed(status, fpga.fpga_base + FPGA_PPS_IRQ_ENABLE);
+    writel_relaxed(status, fpga->fpga_base + FPGA_PPS_IRQ_ENABLE);
 
     /* Clear IRQ */
-    status = readl_relaxed(fpga.fpga_base + FPGA_PPS_IRQ_STATUS);
-    writel_relaxed(status, fpga.fpga_base + FPGA_PPS_IRQ_STATUS);
+    status = readl_relaxed(fpga->fpga_base + FPGA_PPS_IRQ_STATUS);
+    writel_relaxed(status, fpga->fpga_base + FPGA_PPS_IRQ_STATUS);
 
 
     /* initialize PPS specific parts of the bookkeeping data structure. */
-    fpga.info.mode = PPS_CAPTUREASSERT | PPS_OFFSETASSERT |
+    fpga->info.mode = PPS_CAPTUREASSERT | PPS_OFFSETASSERT |
 	PPS_ECHOASSERT | PPS_CANWAIT | PPS_TSFMT_TSPEC;
-    fpga.info.owner = THIS_MODULE;
-    snprintf(fpga.info.name, PPS_MAX_NAME_LEN - 1, "%s",
+    fpga->info.owner = THIS_MODULE;
+    snprintf(fpga->info.name, PPS_MAX_NAME_LEN - 1, "%s",
 	     PPS_FPGA_NAME);
     pps_default_params = PPS_CAPTUREASSERT | PPS_OFFSETASSERT;
 
     /* register PPS source */
-    fpga.pps = pps_register_source(&fpga.info, pps_default_params);
-    if (fpga.pps == NULL) {
-	printk(KERN_ALERT "failed to register IRQ %d as PPS source\n",
-	       fpga.irq);
-	goto pps_reg_err;
+    fpga->pps = pps_register_source(&fpga->info, pps_default_params);
+    if (fpga->pps == NULL) {
+	dev_err(&pdev->dev, "failed to register IRQ %d as PPS source\n",
+		fpga->irq);
+	return -EINVAL;
     }
 
     /* register IRQ interrupt handler */
-    ret = request_irq(fpga.irq, pps_fpga_irq_handler,
-		      IRQF_TRIGGER_HIGH, fpga.info.name, &fpga);
+    ret = request_irq(fpga->irq, pps_fpga_irq_handler,
+		      IRQF_TRIGGER_HIGH, fpga->info.name, fpga);
     if (ret) {
-	printk(KERN_ALERT "failed to acquire IRQ %d\n", fpga.irq);
+	dev_err(&pdev->dev, "Failed to acquire IRQ %d\n", fpga->irq);
 	goto irq_reg_err;
     }
-
-    printk(KERN_INFO "Registered IRQ %d as PPS source\n",
-	   fpga.irq);
 
     return 0;
 
  irq_reg_err:
-    pps_unregister_source(fpga.pps);
-
- pps_reg_err:
-    iounmap(fpga.fpga_base);
+    pps_unregister_source(fpga->pps);
 
     return -EINVAL;
 }
 
-static void __exit pps_fpga_exit(void)
+static int pps_fpga_remove(struct platform_device *pdev)
 {
-    free_irq(fpga.irq, &fpga);
-    pps_unregister_source(fpga.pps);
-    iounmap(fpga.fpga_base);
-    printk(KERN_INFO "removed IRQ %d as PPS source\n", fpga.irq);
+    struct pps_fpga_device_data *fpga;
+
+    fpga = platform_get_drvdata(pdev);
+
+    free_irq(fpga->irq, fpga);
+    pps_unregister_source(fpga->pps);
+    dev_info(&pdev->dev, "removed IRQ %d as PPS source\n", fpga->irq);
+
+    return 0;
 }
 
-module_init(pps_fpga_init);
-module_exit(pps_fpga_exit);
+static const struct of_device_id pps_fpga_of_match[] = {
+	{ .compatible = "fpga,ocxo-pps-0.90"},
+	{}
+};
+MODULE_DEVICE_TABLE(of, pps_fpga_of_match);
+
+static struct platform_driver pps_fpga_platform_driver = {
+	.probe   = pps_fpga_probe,
+	.remove  = pps_fpga_remove,
+	.driver  = {
+		.name = PPS_FPGA_NAME,
+		.of_match_table = pps_fpga_of_match,
+		},
+};
+
+module_platform_driver(pps_fpga_platform_driver);
 
 MODULE_AUTHOR("Daniel Sun  <dcsun88osh@gmail.com>");
 MODULE_DESCRIPTION("Use custom FPGA as PPS source");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
+MODULE_VERSION("0.9.0");

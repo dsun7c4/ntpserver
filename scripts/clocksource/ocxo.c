@@ -82,7 +82,7 @@ static u64 ocxo_counter_read(void)
 }
 #endif
 
-static cycle_t ocxo_clocksource_read(struct clocksource *cs)
+static u64 ocxo_clocksource_read(struct clocksource *cs)
 {
 	return ocxo_counter_read();
 }

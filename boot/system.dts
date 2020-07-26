@@ -14,6 +14,9 @@
 		ethernet0 = &gem0;
 		serial0 = &uart1;
 		serial1 = &uart0;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
 	};
 
 	memory@0 {
@@ -144,12 +147,21 @@
 };
 
 &amba {
-	i2c2: i2c@4160000 {
+	i2c2: i2c@41600000 {
 		compatible = "xlnx,xps-iic-2.00.a";
 		interrupt-parent = <&intc>;
 		clocks = <&clkc 15>;
 		interrupts = <0 29 4 >;
 		reg = < 0x41600000 0x10000 >;
+		#size-cells = <0>;
+		#address-cells = <1>;
+	};
+
+	pps0: pps@80600000 {
+		compatible = "fpga,ocxo-pps-0.90";
+		interrupt-parent = <&intc>;
+		interrupts = <0 32 4 >;
+		reg = < 0x80600000 0x2000 >;
 		#size-cells = <0>;
 		#address-cells = <1>;
 	};

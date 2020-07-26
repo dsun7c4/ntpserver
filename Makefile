@@ -52,11 +52,11 @@ boot: fpga boot/BOOT.bin
 PATH := ${PATH}:${PWD}/u-boot/tools
 
 linux/.config:
-	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-xilinx-linux-gnueabi- xilinx_zynq_defconfig
+	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- xilinx_zynq_defconfig
 
 linux/arch/arm/boot/uImage: linux/.config
-	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-xilinx-linux-gnueabi- olddefconfig
-	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-xilinx-linux-gnueabi- UIMAGE_LOADADDR=0x8000 uImage
+	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
+	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- UIMAGE_LOADADDR=0x8000 uImage
 
 linux: linux/arch/arm/boot/uImage
 

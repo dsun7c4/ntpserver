@@ -8,15 +8,15 @@ ifeq ($(KERNELRELEASE),)
 
     # Assume the source tree is where the running kernel was built
     # You should set KERNELDIR in the environment if it's elsewhere
-    KERNELDIR ?= /home/save1/ntpserver/linux
+    KERNELDIR ?= $(shell readlink -f ../../l)
     # The current directory is passed to sub-makes as argument
     PWD := $(shell pwd)
 
 modules:
-	$(MAKE) ARCH=arm CROSS_COMPILE=arm-xilinx-linux-gnueabi- -C $(KERNELDIR) M=$(PWD) modules
+	$(MAKE) ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -C $(KERNELDIR) M=$(PWD) modules
 
 clean:
-	$(MAKE) ARCH=arm CROSS_COMPILE=arm-xilinx-linux-gnueabi- -C $(KERNELDIR) M=$(PWD) clean
+	$(MAKE) ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -C $(KERNELDIR) M=$(PWD) clean
 
 .PHONY: modules clean
 
