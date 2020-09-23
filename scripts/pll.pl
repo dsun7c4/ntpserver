@@ -17,6 +17,9 @@ my $ctime_reg   = 0x8060011c;
 my $stime_reg   = 0x80600120;
 my $vc_reg      = 0x80600124;
 
+my $max_hold_time = 900;  # 15 minutes
+my $min_hold_time = 30;   # 30 seconds
+
 sub usage
 {
    my($msg) = @_;
@@ -373,7 +376,8 @@ sub loworder
     my $tmp;
     my $i;
     my $status;
-    my $lock_cnt;
+    my $lock_cnt  = 0;
+    my $flock_cnt = 0;
 
 
     for ($i = 0; $i < 3; $i++) {
@@ -398,10 +402,12 @@ sub loworder
 	# Read Phase Frequency Detector
 	# Phase error step 2*pi/100e6, Kd = 100e6
 	$pfd_last = $pfd;
+	# Read phase error
 	$pfd_raw  = peek($pfd_reg);
-	$fd_raw   = peek($fd_reg);
 	$pfd      = $pfd_raw;
 	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
+	# Read frequency error (d/dt phase error)
+	$fd_raw   = peek($fd_reg);
 	$fd       = $fd_raw;
 	$fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
 	# Check PFD status, 1 = in re-sync mode
@@ -412,7 +418,7 @@ sub loworder
 	if ($mode == 1 && (abs($pfd - $pfd_last) > 10 || $status)) {
 	    $hold     = 1;
 	    # Hold OCXO control voltage for 15 minutes
-	    $wait     = 900;
+	    $wait     = $max_hold_time;
 	    # Clear error
 	    $error    = 0.0;
 	    $vc       = $vc * (1.0 - $alpha2) + $residual;
@@ -465,6 +471,11 @@ sub loworder
 	} else {
 	    $lock_cnt = 0;
 	}
+	if ($fd == 0) {
+	    $flock_cnt++;
+	} else {
+	    $flock_cnt = 0;
+	}
 
 	# Switch time constants when we are in lock
 	if (! $hold && $lock_cnt > 20) {
@@ -486,7 +497,9 @@ sub loworder
 	# Turn off hold after wait timer runs out
 	if ($hold) {
 	    $wait--;
-	    if ($wait <= 0) {
+	    if (($wait <= 0) ||
+		# See if we can exit hold early if frequency is locked
+		(! $status && $flock_cnt >= 3 && $wait <= ($max_hold_time - $min_hold_time))) {
 		$hold = 0;
 	    }
 	}
@@ -511,6 +524,9 @@ usage("")   if $Getopt::Std::opt_h;
 
 init_sensors;
 init_pll;
+
+# Display the time from the RTC while waiting for GPS
+set_time(time);
 
 wait_for_gps;
 
