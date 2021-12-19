@@ -3,9 +3,21 @@
  *
  * Read the 100MHz OCXO tsc counter locked to GPS 1 PPS.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2017,2021 Daniel Sun  <dsun7c4osh@gmail.com>
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -99,6 +111,6 @@ static void __exit ocxo_tsc_exit(void)
 module_init(ocxo_tsc_init);
 module_exit(ocxo_tsc_exit);
 
-MODULE_AUTHOR("dcsun88osh@gmail.com");
+MODULE_AUTHOR("dsun7c4osh@gmail.com");
 MODULE_DESCRIPTION("Clocksource driver for OCXO tsc");
 MODULE_LICENSE("GPL");

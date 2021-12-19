@@ -2,7 +2,7 @@
  * pps-fpga.c -- PPS client driver using custom FPGA
  *
  *
- * Copyright (C) 2017 Daniel Sun  <dcsun88osh@gmail.com>
+ * Copyright (C) 2017,2021 Daniel Sun  <dsun7c4osh@gmail.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -212,7 +212,7 @@ static struct platform_driver pps_fpga_platform_driver = {
 
 module_platform_driver(pps_fpga_platform_driver);
 
-MODULE_AUTHOR("Daniel Sun  <dcsun88osh@gmail.com>");
+MODULE_AUTHOR("Daniel Sun  <dsun7c4osh@gmail.com>");
 MODULE_DESCRIPTION("Use custom FPGA as PPS source");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.9.0");

@@ -1,6 +1,5 @@
 # NTP Server based on GPS disciplined OCXO
 
-* WARNING: Design in progress. Source files are inconsistent.
 * [MicroZed](http://zedboard.org/product/microzed) processor board
 * Xilinx Zynq 7010 ARM processor/fpga
 * STRATUM 3E High Stability Oven Stabilized Oscillator
@@ -53,10 +52,10 @@
     Break out board for the panel mount USB-B connector.
 * linux
 
-  Fork of the Xilinx linux kernel used.
+  Fork of the Xilinx linux kernel used.  Currently unchanged since the fork.  Used to locally build the kernel and modules.
 * u-boot
 
-  Fork of Xilinx u-boot used.
+  Fork of Xilinx u-boot used.  Currently unchanged since the fork.  Used to locally build the bootloader.
 * scripts
 
   Various test scripts and programs to setup the programmed FPGA.
