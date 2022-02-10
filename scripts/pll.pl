@@ -380,12 +380,17 @@ sub loworder
     my $flock_cnt = 0;
 
 
+    # Set the VCO to the residual value before resetting the PFD
+    $val      = int($residual * $gain3 + 32768);
+    poke($vc_reg, $val);
+    sleep (1);
+
     for ($i = 0; $i < 3; $i++) {
 	$pfd_raw  = peek($pfd_reg);
 	$pfd      = $pfd_raw;
 	$pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
 	$val      = peek($vc_reg);
-	printf ("# 0x%08x 0 %10.0f 0 0 0 0 0\n", $pfd_raw, $pfd);
+	printf ("# PFD: 0x%08x %.0f 0x%04x\n", $pfd_raw, $pfd, $val);
 	sleep (1);
     }
 
@@ -456,7 +461,7 @@ sub loworder
 
 	($temp, $tint, $iocxo, $tocxo, $tcpu, $tedge) = sensors;
 
-	printf("%f %.4f  %fA %.4f  %f %f  %.0f %.0f  %f  %f %f  0x%04x  %d %d %d %d\n",
+	printf("%f %.4f  %fA %.4f  %f %f  % .0f % .0f  % f  %f %f  0x%04x  %d %d %d %d\n",
 	       $temp, $tint,
 	       $iocxo, $tocxo,
 	       $tcpu, $tedge,
