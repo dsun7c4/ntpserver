@@ -24,7 +24,7 @@ do_start() {
     ${ROOT}/bin/poke 0x80600200 135
 
     # Start the pll and send the output as UDP broadcast
-    ${ROOT}/bin/pll.pl | nc -u -b 192.168.124.255 4010&
+    ${ROOT}/bin/pll.pl -a 1 | nc -u -b 192.168.124.255 4010&
 
     # Display the time
     ${ROOT}/bin/rottime.sh &

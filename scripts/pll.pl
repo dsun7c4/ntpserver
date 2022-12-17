@@ -357,6 +357,69 @@ sub display_rtc
 
 }
 
+# Initialize the PFD with initial control value
+# Reset the PFD to jump into sync, takes too long to slew
+# Set the display time
+sub init_pfd
+{
+    my ($control) = @_;
+
+    my $pfd_raw;
+    my $pfd;
+    my $val;
+    my $i;
+
+    poke($vc_reg, $control);
+    sleep (1);
+
+    for ($i = 0; $i < 3; $i++) {
+        $pfd_raw  = peek($pfd_reg);
+        $pfd      = $pfd_raw;
+        $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
+        $val      = peek($vc_reg);
+        printf ("# PFD: 0x%08x %.0f 0x%04x\n", $pfd_raw, $pfd, $val);
+        sleep (1);
+    }
+
+    # Reset the PFD
+    printf ("# Resetting PFD\n");
+    poke($vc_reg, $val | 0x300000);
+    sleep (3);
+
+    # Set the time after a PFD jump to align ms counters
+    set_time(time);
+
+}
+
+# Read the PFD phase error, frequency error, and status
+sub read_pfd
+{
+    my $pfd_raw;
+    my $pfd;
+
+    my $fd_raw;
+    my $fd;
+
+    my $status;
+
+    # Read Phase Frequency Detector
+    # Phase error step 2*pi/100e6, Kd = 100e6
+
+    # Read phase error
+    $pfd_raw  = peek($pfd_reg);
+    $pfd      = $pfd_raw;
+    $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
+    # Read frequency error (d/dt phase error)
+    $fd_raw   = peek($fd_reg);
+    $fd       = $fd_raw;
+    $fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
+    # Check PFD status, 1 = in re-sync mode
+    $status   = peek($vc_reg) & 0x00800000 ? 1 : 0;
+
+    return ($pfd, $fd, $status);
+
+}
+
 sub loworder
 {
     my $mode     = 0;
@@ -379,10 +442,8 @@ sub loworder
     my $gain2    = 0.007;
     my $gain3    = 1.0;
 
-    my $pfd_raw;
     my $pfd;
     my $pfd_last;
-    my $fd_raw;
     my $fd;
     my $error;
     my $val;
@@ -395,59 +456,38 @@ sub loworder
 
 
     # Set the VCO to the residual value before resetting the PFD
-    $val      = int($residual * $gain3 + 32768);
-    poke($vc_reg, $val);
-    sleep (1);
-
-    for ($i = 0; $i < 3; $i++) {
-        $pfd_raw  = peek($pfd_reg);
-        $pfd      = $pfd_raw;
-        $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-        $val      = peek($vc_reg);
-        printf ("# PFD: 0x%08x %.0f 0x%04x\n", $pfd_raw, $pfd, $val);
-        sleep (1);
-    }
-
-    # Reset the PFD
-    printf ("# Resetting PFD\n");
-    poke($vc_reg, $val | 0x300000);
-    sleep (3);
-
-    # Set the time after a PFD jump to align ms counters
-    set_time(time);
+    init_pfd(int($residual * $gain3 + 32768));
 
     while (1) {
 
         # Read Phase Frequency Detector
         # Phase error step 2*pi/100e6, Kd = 100e6
         $pfd_last = $pfd;
-        # Read phase error
-        $pfd_raw  = peek($pfd_reg);
-        $pfd      = $pfd_raw;
-        $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-        # Read frequency error (d/dt phase error)
-        $fd_raw   = peek($fd_reg);
-        $fd       = $fd_raw;
-        $fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
-        # Check PFD status, 1 = in re-sync mode
-        $status   = peek($vc_reg) & 0x00800000 ? 1 : 0;
+
+	($pfd, $fd, $status) = read_pfd;
 
         # Detect a large jump in phase or dropped pps from GPS when in
         # slow response mode
-        if ($mode == 1 && (abs($pfd - $pfd_last) > 10 || $status)) {
-            $hold     = 1;
+        if (($mode == 1 && abs($pfd - $pfd_last) > 10) || $status) {
+	    if ($hold == 0) {
+		# Clear error
+		$error    = 0.0;
+		$vc       = $vc * (1.0 - $alpha2) + $residual;
+	    }
+
             # Hold OCXO control voltage for 15 minutes
+            $hold     = 1;
             $wait     = $max_hold_time;
-            # Clear error
-            $error    = 0.0;
-            $vc       = $vc * (1.0 - $alpha2) + $residual;
-            # Set time constant to fast mode
-            $alpha1   = 0.3;
-            $gain1    = 10.0;
-            $alpha2   = 1.0;
-            $gain2    = 0.007;
-            $gain3    = 1.0;
-            $mode     = 0;
+
+	    if ($mode == 1) {
+		# Set time constant to fast mode
+		$alpha1   = 0.3;
+		$gain1    = 10.0;
+		$alpha2   = 1.0;
+		$gain2    = 0.007;
+		$gain3    = 1.0;
+		$mode     = 0;
+	    }
         }
 
         if (! $hold) {
@@ -570,7 +610,7 @@ sub plag
     my $tocxo;
 
     my @x        = (0.0, 0.0);
-    my @y        = (-7000.0, 0.0);
+    my @y        = (-7317.0, 0.0);
 
     my $T        = 1.0;
     my @c        = (1.0, 1.0);
@@ -584,10 +624,8 @@ sub plag
     my $x0;
     my $x1;
 
-    my $pfd_raw;
     my $pfd;
     my $pfd_last;
-    my $fd_raw;
     my $fd;
     my $val;
     my $microseconds;
@@ -600,52 +638,28 @@ sub plag
 
     ($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
 
-    # Set the VCO to the residual value before resetting the PFD
-    $val      = int($y[0] + 32768);
-    poke($vc_reg, $val);
-    sleep (1);
-
-    for ($i = 0; $i < 3; $i++) {
-        $pfd_raw  = peek($pfd_reg);
-        $pfd      = $pfd_raw;
-        $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-        $val      = peek($vc_reg);
-        printf ("# PFD: 0x%08x %.0f 0x%04x\n", $pfd_raw, $pfd, $val);
-        sleep (1);
-    }
-
-    # Reset the PFD
-    printf ("# Resetting PFD\n");
-    poke($vc_reg, $val | 0x300000);
-    sleep (3);
-
-    # Set the time after a PFD jump to align ms counters
-    set_time(time);
+    # Initialize the PFD and its control voltage
+    init_pfd(int($y[0] + 32768));
 
     while (1) {
 
-        # Read Phase Frequency Detector
         $pfd_last = $pfd;
-        # Read phase error
-        $pfd_raw  = peek($pfd_reg);
-        $pfd      = $pfd_raw;
-        $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
-        # Read frequency error (d/dt phase error)
-        $fd_raw   = peek($fd_reg);
-        $fd       = $fd_raw;
-        $fd      -= (0x80000000 * 2.0) if ($fd >= 0x80000000);
-        # Check PFD status, 1 = in re-sync mode
-        $status   = peek($vc_reg) & 0x00800000 ? 1 : 0;
 
-        # Detect a large jump in phase or dropped pps from GPS when in
-        # slow response mode
-        if ($mode == 1 && (abs($pfd - $pfd_last) > 10 || $status)) {
-            $hold     = 1;
+        # Read Phase Frequency Detector
+	($pfd, $fd, $status) = read_pfd;
+
+        # Detect a large jump in phase when in slow response mode or
+        # dropped pps from GPS
+        if (($mode == 1 && abs($pfd - $pfd_last) > 10) || $status) {
             # Hold OCXO control voltage for 15 minutes
+            $hold     = 1;
             $wait     = $max_hold_time;
-            $mode     = 0;
-            # Set time constant to fast mode
-            ($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
+
+	    if ($mode == 1) {
+		# Set time constant to fast mode
+		($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
+		$mode     = 0;
+	    }
         }
 
         if (! $hold) {
