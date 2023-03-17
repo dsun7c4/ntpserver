@@ -3,7 +3,7 @@
 	url = https://github.com/dsun7c4/ntpserver-kicad.git
 [submodule "u-boot"]
 	path = u-boot
-	url = https://github.com/dsun7c4/ntpserver-u-boot.git
+	url = https://github.com/Xilinx/u-boot-xlnx.git
 [submodule "freecad"]
 	path = freecad
 	url = https://github.com/dsun7c4/ntpserver-freecad.git
@@ -12,4 +12,4 @@
 	url = https://github.com/dsun7c4/ntpserver-fpga.git
 [submodule "linux"]
 	path = linux
-	url = https://github.com/dsun7c4/ntpserver-linux.git
+	url = https://github.com/Xilinx/linux-xlnx.git
