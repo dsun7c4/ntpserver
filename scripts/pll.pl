@@ -372,19 +372,22 @@ sub init_pfd
     poke($vc_reg, $control);
     sleep (1);
 
-    for ($i = 0; $i < 3; $i++) {
+    for ($i = 0; $i < 15; $i++) {
         $pfd_raw  = peek($pfd_reg);
         $pfd      = $pfd_raw;
         $pfd     -= (0x80000000 * 2.0) if ($pfd >= 0x80000000);
         $val      = peek($vc_reg);
         printf ("# PFD: 0x%08x %.0f 0x%04x\n", $pfd_raw, $pfd, $val);
+        if ($i == 3) {
+            # Reset the PFD
+            printf ("# Resetting PFD\n");
+            poke($vc_reg, $val | 0x300000);
+        }
+        if ($i >= 6) {
+            last if (($val & 0x00b00000) == 0);
+        }
         sleep (1);
     }
-
-    # Reset the PFD
-    printf ("# Resetting PFD\n");
-    poke($vc_reg, $val | 0x300000);
-    sleep (3);
 
     # Set the time after a PFD jump to align ms counters
     set_time(time);
@@ -464,30 +467,30 @@ sub loworder
         # Phase error step 2*pi/100e6, Kd = 100e6
         $pfd_last = $pfd;
 
-	($pfd, $fd, $status) = read_pfd;
+        ($pfd, $fd, $status) = read_pfd;
 
         # Detect a large jump in phase or dropped pps from GPS when in
         # slow response mode
         if (($mode == 1 && abs($pfd - $pfd_last) > 10) || $status) {
-	    if ($hold == 0) {
-		# Clear error
-		$error    = 0.0;
-		$vc       = $vc * (1.0 - $alpha2) + $residual;
-	    }
+            if ($hold == 0) {
+                # Clear error
+                $error    = 0.0;
+                $vc       = $vc * (1.0 - $alpha2) + $residual;
+            }
 
             # Hold OCXO control voltage for 15 minutes
             $hold     = 1;
             $wait     = $max_hold_time;
 
-	    if ($mode == 1) {
-		# Set time constant to fast mode
-		$alpha1   = 0.3;
-		$gain1    = 10.0;
-		$alpha2   = 1.0;
-		$gain2    = 0.007;
-		$gain3    = 1.0;
-		$mode     = 0;
-	    }
+            if ($mode == 1) {
+                # Set time constant to fast mode
+                $alpha1   = 0.3;
+                $gain1    = 10.0;
+                $alpha2   = 1.0;
+                $gain2    = 0.007;
+                $gain3    = 1.0;
+                $mode     = 0;
+            }
         }
 
         if (! $hold) {
@@ -646,7 +649,7 @@ sub plag
         $pfd_last = $pfd;
 
         # Read Phase Frequency Detector
-	($pfd, $fd, $status) = read_pfd;
+        ($pfd, $fd, $status) = read_pfd;
 
         # Detect a large jump in phase when in slow response mode or
         # dropped pps from GPS
@@ -655,11 +658,11 @@ sub plag
             $hold     = 1;
             $wait     = $max_hold_time;
 
-	    if ($mode == 1) {
-		# Set time constant to fast mode
-		($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
-		$mode     = 0;
-	    }
+            if ($mode == 1) {
+                # Set time constant to fast mode
+                ($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
+                $mode     = 0;
+            }
         }
 
         if (! $hold) {
@@ -705,14 +708,14 @@ sub plag
 
         # Switch time constants when we are in lock
         if (! $hold) {
-	    if ($mode == 0 && $lock_cnt > 20) {
-		($y1, $x1, $x0) = coeff($c[1], $r1[1], $r2[1], $T);
-		$mode     = 1;
-	    } elsif ($mode == 1 && abs($pfd) > 10) {
-		($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
-		$mode     = 0;
-	    }
-	}
+            if ($mode == 0 && $lock_cnt > 20) {
+                ($y1, $x1, $x0) = coeff($c[1], $r1[1], $r2[1], $T);
+                $mode     = 1;
+            } elsif ($mode == 1 && abs($pfd) > 10) {
+                ($y1, $x1, $x0) = coeff($c[0], $r1[0], $r2[0], $T);
+                $mode     = 0;
+            }
+        }
 
         # Turn off hold after wait timer runs out
         if ($hold) {
