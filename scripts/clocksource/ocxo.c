@@ -98,7 +98,7 @@ static int __init ocxo_tsc_init(void)
 
  out_unmap:
     iounmap(ocxo_base);
-    WARN(err, "OCXO tsc register failed (%d)\n", err);
+    pr_warn("OCXO tsc register failed (%d)\n", err);
     return 1;
 }
 

@@ -2,6 +2,9 @@
 /*
  * Copyright (C) 2011 - 2014 Xilinx
  * Copyright (C) 2016 Jagan Teki <jteki@openedev.com>
+ *
+ * Modified from arch/arm/boot/dts/zynq-microzed.dts
+ *
  */
 /dts-v1/;
 /include/ "zynq-7000.dtsi"
@@ -92,6 +95,7 @@
 
 &i2c0 {
 	status = "okay";
+	clock-frequency = <100000>;
 
 	ds3232: rtc@68 {
 		compatible = "dallas,ds3232";
@@ -103,6 +107,7 @@
 
 &i2c1 {
 	status = "okay";
+	clock-frequency = <100000>;
 };
 
 &uart0 {
@@ -155,6 +160,7 @@
 		interrupt-parent = <&intc>;
 		clocks = <&clkc 15>;
 		interrupts = <0 29 4 >;
+		clock-frequency = <100000>;
 		reg = < 0x41600000 0x10000 >;
 		#size-cells = <0>;
 		#address-cells = <1>;

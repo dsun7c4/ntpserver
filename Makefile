@@ -51,15 +51,25 @@ boot: fpga boot/BOOT.bin
 # Pickup tools from u-boot in PATH
 PATH := ${PATH}:${PWD}/u-boot/tools
 
-linux/.config:
-	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- xilinx_zynq_defconfig
+linux/.config: boot/config
+	echo cp $< $@
+#	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- xilinx_zynq_defconfig
 
+# kernel modules need to be built before compiling the clocksource and
+# pps modules.
 linux/arch/arm/boot/uImage: linux/.config
 	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
 	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- UIMAGE_LOADADDR=0x8000 uImage
+	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- UIMAGE_LOADADDR=0x8000 modules
 
 linux: linux/arch/arm/boot/uImage
 
+# Needs linux/Module.symvers from kernel modules build
+scripts/clocksource/ocxo.ko: scripts/clocksource/ocxo.c
+	${MAKE} -C scripts/clocksource
+
+scripts/pps/pps-fpga.ko: scripts/pps/pps-fpga.c
+	${MAKE} -C scripts/pps
 
 ######################################################################
 debug:

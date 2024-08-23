@@ -131,7 +131,7 @@ static int pps_fpga_probe(struct platform_device *pdev)
              res->name, res->start, res->end, irq);
 
     /* FPGA base address */
-    fpga->fpga_base = devm_ioremap_nocache(&pdev->dev, res->start, res->end - res->start + 1);
+    fpga->fpga_base = devm_ioremap(&pdev->dev, res->start, res->end - res->start + 1);
     if (!fpga->fpga_base) {
         dev_err(&pdev->dev, "Invalid base address: 0x%px\n", (void *)res->start);
         return -EINVAL;
