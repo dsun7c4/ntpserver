@@ -1,4 +1,7 @@
 
+
+PROJDIR=$(shell pwd)
+
 ######################################################################
 #  Xilinx u-boot build
 
@@ -60,7 +63,9 @@ linux/.config: boot/config
 linux/arch/arm/boot/uImage: linux/.config
 	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
 	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- UIMAGE_LOADADDR=0x8000 uImage
-	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- UIMAGE_LOADADDR=0x8000 modules
+
+kernel_modules:
+	${MAKE} -C linux ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- modules
 
 linux: linux/arch/arm/boot/uImage
 
@@ -70,6 +75,22 @@ scripts/clocksource/ocxo.ko: scripts/clocksource/ocxo.c
 
 scripts/pps/pps-fpga.ko: scripts/pps/pps-fpga.c
 	${MAKE} -C scripts/pps
+
+modules: kernel_modules scripts/clocksource/ocxo.ko scripts/pps/pps-fpga.ko
+
+
+boot/mod.tar: modules
+	-rm -r ${PROJDIR}/boot/modules
+	fakeroot sh -c '\
+	    cd ${PROJDIR}/linux; \
+	    INSTALL_MOD_PATH=${PROJDIR}/boot/modules make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- modules_install; \
+	    cd ${PROJDIR}/scripts/clocksource; \
+	    INSTALL_MOD_PATH=${PROJDIR}/boot/modules/ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- M=`pwd` -C ../../linux/ modules_install; \
+	    cd ${PROJDIR}/scripts/pps; \
+	    INSTALL_MOD_PATH=${PROJDIR}/boot/modules/ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- M=`pwd` -C ../../linux/ modules_install; \
+	    cd ${PROJDIR}/boot/modules; \
+	    tar cvf ${PROJDIR}/boot/mod.tar .'
+
 
 ######################################################################
 debug:
