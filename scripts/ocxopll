@@ -17,25 +17,30 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 ROOT=/root
 
 do_start() {
-    insmod ${ROOT}/modules/ocxo.ko
-    insmod ${ROOT}/modules/pps-fpga.ko
+    modprobe ocxo
+    modprobe pps-fpga
 
     # Set the fan speed to around 50%
     ${ROOT}/bin/poke 0x80600200 135
 
-    # Start the pll and send the output as UDP broadcast
-    ${ROOT}/bin/pll.pl -a 1 | nc -u -b 192.168.124.255 4010&
+    (
+	# Close sdtout and stderr for startpar
+        exec >&- 2>&-
 
-    # Display the time
-    ${ROOT}/bin/rottime.sh &
+	# Start the pll and send the output as UDP broadcast
+	${ROOT}/bin/pll.pl -a 1 | nc -u -b 192.168.124.255 4010&
+
+	# Display the time
+	${ROOT}/bin/rottime.sh &
     
-    # Wait for the pll to lock
-    sleep 800 && service ntp start&
+	# Wait for the pll to lock
+	sleep 800 && service ntpsec start&
+    )
 }
 
 do_stop() {
-    # Stop the ntp service
-    service ntp stop
+    # Stop the ntpsec service
+    service ntpsec stop
 }
 
 case "$1" in

@@ -11,7 +11,7 @@
 * boot
 
   Files in the boot partition that the Zynq uses for bootstrap loading.
-* fpga
+* fpga (submodule)
 
   The FPGA code for the Zynq processor.  Setup for the v1.1.0 version of the main board.  The FPGA drives the custom peripherals on the main board:
   - Time Stamp Counter (TSC) running from the OCXO clock.
@@ -19,19 +19,25 @@
   - OCXO control voltage DAC.
   - Phase detector between GPS PPS signal and OCXO PPS signal.
   - Time of day counters.
-* freecad
+* freecad (submodule)
 
-  freecad 0.16 3D models for the case parts and components for kicad.
+  freecad 1.0 3D models for the case parts and components for kicad.
   * case
 
     3D model of the case, display, pcb, power supply, etc
-    * assembly.fcstd
+    * airduct
+
+      Cover mounted fan and air duct to redirect air flow horizontally.
+    * assembly.FCStd
 
       Top level case assembly incorporating all other files in this directory
+    * filter
+
+      Front filter models with experimental mounting to the front panel.
   * ponoko
 
     File sent to [ponoko](https://www.ponoko.com/) to make the OXCO cover, air duct for the fan, red acrylic filter for the display, and experimental parts for the case.
-* kicad
+* kicad (submodule)
   * 2x7seg
 
     2 Digit 7-segment display board.  Designed to be strung together to any length.
@@ -50,12 +56,12 @@
   * usbbbrkout
 
     Break out board for the panel mount USB-B connector.
-* linux
+* linux (submodule)
 
-  Fork of the Xilinx linux kernel used.  Currently unchanged since the fork.  Used to locally build the kernel and modules.
-* u-boot
+  Submodule pointing to the Xilinx version of linux used.
+* u-boot (submodule)
 
-  Fork of Xilinx u-boot used.  Currently unchanged since the fork.  Used to locally build the bootloader.
+  Submodule pointing to the Xilinx version of u-boot used.
 * scripts
 
   Various test scripts and programs to setup the programmed FPGA.
